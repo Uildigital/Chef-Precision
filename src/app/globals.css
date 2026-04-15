@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1A1A2E;
+  --color-secondary: #D4AF37;
+  --color-accent: #722F37;
+  --color-pearl: #F8F9FA;
+  --color-muted: #6C757D;
+}
+
+:root {
+  --background: #F8F9FA;
+  --foreground: #1A1A2E;
+  --primary: #1A1A2E;
+  --secondary: #D4AF37;
+  --accent: #722F37;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Base Expert Classes */
+.glass-panel {
+  @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl;
+}
+
+.premium-button {
+  @apply bg-primary text-white font-black py-4 px-8 rounded-2xl shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest hover:bg-primary/90;
+}
+
+.input-expert {
+  @apply bg-white border border-primary/5 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-secondary/20 transition-all font-bold text-sm text-primary;
+}
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.5s ease-out forwards;
+}
