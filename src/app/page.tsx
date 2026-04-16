@@ -140,6 +140,35 @@ export default function ChefPrecision() {
     setReceitas(lista);
     localStorage.setItem("chef-receitas", JSON.stringify(lista));
   };
+  const carregarDemo = () => {
+    const demoInsumos: Insumo[] = [
+        { id: '1', name: 'Leite Condensado (Moça)', price: 7.50, quantity: 395, unit: 'g' },
+        { id: '2', name: 'Creme de Leite (Nestlé)', price: 4.80, quantity: 200, unit: 'g' },
+        { id: '3', name: 'Chocolate em Pó 50%', price: 32.00, quantity: 1000, unit: 'g' },
+        { id: '4', name: 'Granulado Gourmet', price: 45.00, quantity: 1000, unit: 'g' },
+        { id: '5', name: 'Manteiga Sem Sal', price: 12.00, quantity: 200, unit: 'g' },
+    ];
+
+    const demoReceita: Receita = {
+        id: '101',
+        nome: 'Brigadeiro Belga Tradicional',
+        itens: [
+            { id_insumo: '1', quantidade_usada: 395 },
+            { id_insumo: '2', quantidade_usada: 100 },
+            { id_insumo: '3', quantidade_usada: 30 },
+            { id_insumo: '5', quantidade_usada: 15 },
+        ],
+        rendimento: 25,
+        margem_desejada: 3.5
+    };
+
+    setInsumos(demoInsumos);
+    setReceitas([demoReceita]);
+    localStorage.setItem("chef-insumos", JSON.stringify(demoInsumos));
+    localStorage.setItem("chef-receitas", JSON.stringify([demoReceita]));
+    setAbaAtiva('receitas');
+    alert("✨ Modo Demo Ativado! Veja suas receitas agora.");
+  };
 
   return (
     <div className="flex min-h-screen bg-[#FDFCFB] text-[#2D2424] font-sans">
@@ -184,7 +213,7 @@ export default function ChefPrecision() {
 
           <main className="flex-1 overflow-y-auto">
              <AnimatePresence mode="wait">
-                {abaAtiva === 'home' && <HomeView onStart={() => setAbaAtiva('receitas')} />}
+                {abaAtiva === 'home' && <HomeView onStart={() => setAbaAtiva('receitas')} onDemo={carregarDemo} />}
                 {abaAtiva === 'receitas' && !receitaEmEdicao && <ReceitasView receitas={receitas} insumos={insumos} onNovo={() => setAbaAtiva('receitas')} onExcluir={excluirReceita} onVisualizar={setReceitaEmEdicao} onSalvar={salvarReceitaCompleta} />}
                 {abaAtiva === 'receitas' && receitaEmEdicao && <DetalheCalculo receita={receitaEmEdicao} insumos={insumos} config={config} onVoltar={() => setReceitaEmEdicao(null)} />}
                 {abaAtiva === 'insumos' && <InsumosView insumos={insumos} onAdicionar={salvarInsumo} onExcluir={excluirInsumo} />}
@@ -198,15 +227,18 @@ export default function ChefPrecision() {
 
 // --- VISÕES REFORMULADAS ---
 
-function HomeView({ onStart }: any) {
+function HomeView({ onStart, onDemo }: any) {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#1A1A1A] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
             <div className="absolute top-[-20%] right-[-20%] w-[600px] h-[600px] bg-[#D4AF37]/10 blur-[150px] rounded-full" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="z-10 bg-white/5 backdrop-blur-xl p-10 rounded-[4rem] border border-white/10 shadow-3xl mb-10">
                 <ChefHat size={60} className="text-[#D4AF37] mb-6 mx-auto" />
                 <h1 className="text-5xl font-black text-white leading-none tracking-tighter uppercase mb-6 italic">Chef<br/><span className="text-[#D4AF37] not-italic">Precision</span></h1>
-                <p className="text-white/40 text-lg max-w-sm font-medium leading-relaxed italic mb-10">Transforme suas receitas em lucro real. Simples, rápido e profissional.</p>
-                <button onClick={onStart} className="px-12 py-6 bg-[#D4AF37] text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] flex items-center gap-3 shadow-2xl hover:scale-105 active:scale-95 transition-all mx-auto">Precificar Agora <ChevronRight size={16}/></button>
+                <p className="text-white/40 text-sm max-w-sm font-medium leading-relaxed italic mb-10">Transforme suas receitas em lucro real. Simples, rápido e profissional.</p>
+                <div className="flex flex-col gap-4">
+                    <button onClick={onStart} className="w-full px-12 py-6 bg-[#D4AF37] text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 shadow-2xl hover:scale-105 active:scale-95 transition-all mx-auto">Precificar Agora <ChevronRight size={16}/></button>
+                    <button onClick={onDemo} className="w-full px-12 py-6 bg-white/5 text-white/40 border border-white/10 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/10 transition-all">Ver Exemplo de Ateliê <Sparkles size={14}/></button>
+                </div>
             </motion.div>
         </motion.div>
     );
