@@ -19,6 +19,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/utils/supabase/client";
 
 // --- Types ---
 interface Ingredient {
@@ -49,24 +50,92 @@ export default function ChefPrecision() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLogged, setIsLogged] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const supabase = createClient();
 
-  // Load Initial Data
+  // --- Auth & Sync Logic ---
   useEffect(() => {
-    const savedIng = localStorage.getItem("chef-ingredients");
-    if (savedIng) setIngredients(JSON.parse(savedIng));
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsLogged(true);
+        setUser(session.user);
+        fetchData(session.user.id);
+      }
+    };
+    checkUser();
 
-    const savedRec = localStorage.getItem("chef-recipes");
-    if (savedRec) setRecipes(JSON.parse(savedRec));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setIsLogged(true);
+        setUser(session.user);
+        fetchData(session.user.id);
+      } else {
+        setIsLogged(false);
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Save on Change
-  useEffect(() => {
-    localStorage.setItem("chef-ingredients", JSON.stringify(ingredients));
-  }, [ingredients]);
+  const fetchData = async (userId: string) => {
+    const { data: ingData } = await supabase.from('ingredients').select('*').eq('user_id', userId);
+    if (ingData) setIngredients(ingData);
 
-  useEffect(() => {
-    localStorage.setItem("chef-recipes", JSON.stringify(recipes));
-  }, [recipes]);
+    const { data: recData } = await supabase.from('recipes').select('*').eq('user_id', userId);
+    if (recData) setRecipes(recData);
+  };
+
+  const handleLogin = async () => {
+    const email = window.prompt("Digite seu e-mail para receber o link de acesso:");
+    if (!email) return;
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (error) alert("Erro ao enviar link: " + error.message);
+    else alert("Link de acesso enviado! Verifique seu e-mail.");
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    setIngredients([]);
+    setRecipes([]);
+    window.location.reload();
+  };
+
+  // --- Real-time DB Sync ---
+  const saveIngredient = async (newIng: Omit<Ingredient, 'id'>) => {
+    if (!isLogged) {
+        // Fallback to local if not logged
+        const localIng = { ...newIng, id: Date.now().toString() };
+        setIngredients([...ingredients, localIng]);
+        return;
+    }
+
+    const { data, error } = await supabase.from('ingredients').insert([{
+        ...newIng,
+        user_id: user.id
+    }]).select();
+
+    if (error) alert("Erro ao salvar: " + error.message);
+    else if (data) setIngredients([...ingredients, data[0]]);
+  };
+
+  const deleteIngredient = async (id: string) => {
+    if (!isLogged) {
+        setIngredients(ingredients.filter(i => i.id !== id));
+        return;
+    }
+    await supabase.from('ingredients').delete().eq('id', id);
+    setIngredients(ingredients.filter(i => i.id !== id));
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] text-[#1A1A2E]">
@@ -106,12 +175,18 @@ export default function ChefPrecision() {
                <div className="h-0.5 w-8 bg-secondary rounded-full" />
             </div>
             <div className="flex items-center gap-2">
-                {!isLogged && (
-                    <button className="px-4 py-2 bg-primary text-white text-[8px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center gap-2">
+                {!isLogged ? (
+                    <button onClick={handleLogin} className="px-4 py-2 bg-primary text-white text-[8px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center gap-2">
                        <DollarSign size={10} className="text-secondary" /> Sincronizar Nuvem
                     </button>
+                ) : (
+                    <button onClick={handleLogout} className="px-4 py-2 bg-accent/10 text-accent text-[8px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2">
+                        Sair
+                    </button>
                 )}
-                <div className="h-10 w-10 bg-secondary/10 rounded-full flex items-center justify-center text-secondary font-black text-xs border border-secondary/10">JD</div>
+                <div className="h-10 w-10 bg-secondary/10 rounded-full flex items-center justify-center text-secondary font-black text-xs border border-secondary/10">
+                   {user?.email?.substring(0,2).toUpperCase() || "JD"}
+                </div>
             </div>
           </header>
 
@@ -219,13 +294,13 @@ function InsumosTab({ ingredients, setIngredients }: any) {
 
     const addIngredient = () => {
         if (!newIng.name) return;
-        setIngredients([...ingredients, { ...newIng, id: Date.now().toString() }]);
+        saveIngredient(newIng);
         setNewIng({ name: '', price: 0, quantity: 1000, unit: 'g' });
         setIsAdding(false);
     };
 
     const removeIngredient = (id: string) => {
-        setIngredients(ingredients.filter((i: any) => i.id !== id));
+        deleteIngredient(id);
     };
 
     return (
