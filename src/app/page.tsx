@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // --- Tipagens Elite ---
 interface Insumo {
@@ -52,6 +54,7 @@ export default function ChefPrecision() {
   
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [engenharias, setEngenharias] = useState<Engenharia[]>([]);
+  const [config, setConfig] = useState({ mao_de_obra: 0, taxa_fixa: 5 }); // Rateio %
   const [isLogado, setIsLogado] = useState(false);
   const [user, setUser] = useState<any>(null);
   const supabase = createClient();
@@ -224,7 +227,7 @@ export default function ChefPrecision() {
                 {abaAtiva === 'insumos' && <GestaoInsumos insumos={insumos} onAdicionar={adicionarInsumo} onDeletar={deletarInsumo} />}
                 {abaAtiva === 'engenharias' && !engenhariaSelecionada && <EngenhariaList engenharias={engenharias} insumos={insumos} onNovo={() => {}} onSalvar={salvarEngenharia} onDeletar={deletarEngenharia} onVer={setEngenhariaSelecionada} />}
                 {abaAtiva === 'engenharias' && engenhariaSelecionada && <DetalheEngenharia eng={engenhariaSelecionada} insumos={insumos} onVoltar={() => setEngenhariaSelecionada(null)} />}
-                {abaAtiva === 'configuracoes' && <ConfiguracoesMaster />}
+                {abaAtiva === 'configuracoes' && <ConfiguracoesMaster config={config} setConfig={setConfig} />}
              </AnimatePresence>
           </main>
       </div>
@@ -412,24 +415,88 @@ function EngenhariaList({ engenharias, insumos, onSalvar, onDeletar, onVer }: an
                         <div className="flex items-center justify-between mb-10">
                             <div><span className="text-[9px] font-black text-primary/20 uppercase tracking-widest block mb-1">Custo Bruto</span><span className="text-xl font-black text-primary">R$ {calcularCustoTotal(e.componentes).toFixed(2)}</span></div>
                             <div className="text-right"><span className="text-[9px] font-black text-primary/20 uppercase tracking-widest block mb-1">Preço Sugerido</span><span className="text-xl font-black text-secondary">R$ {(calcularCustoTotal(e.componentes) * e.margem).toFixed(2)}</span></div>
-                        </div>
-                        <button onClick={() => onVer(e)} className="w-full py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl active:scale-95 transition-all">Analisar Lucratividade</button>
+                           <button onClick={() => onVer(e)} className="w-full py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl active:scale-95 transition-all">Analisar Lucratividade</button>
                     </div>
                 ))}
-             </div>
+            </div>
+            {engenharias.length === 0 && (
+                <div className="py-24 text-center opacity-10 flex flex-col items-center">
+                    <BookOpen size={64} className="mb-6"/>
+                    <span className="text-[11px] font-black uppercase tracking-[0.5em]">Nenhuma ficha técnica criada</span>
+                </div>
+            )}
         </motion.div>
     );
 }
 
 function DetalheEngenharia({ eng, insumos, onVoltar }: any) {
-    const custoTotal = eng.componentes.reduce((acc: any, curr: any) => {
-        const ins = insumos.find((i: any) => i.id === curr.id_insumo);
-        return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade : 0);
-    }, 0);
+    const calcularCustos = () => {
+        const custoInsumos = eng.componentes.reduce((acc: any, curr: any) => {
+            const ins = insumos.find((i: any) => i.id === curr.id_insumo);
+            return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade : 0);
+        }, 0);
+        return {
+            insumos: custoInsumos,
+            total: custoInsumos + (custoInsumos * (eng.custos_fixos / 100))
+        };
+    };
+
+    const custos = calcularCustos();
+
+    const handleExportarPDF = () => {
+        const doc = new jsPDF() as any;
+        const data = new Date().toLocaleDateString();
+
+        // Estilização do PDF
+        doc.setFontSize(22);
+        doc.setTextColor(26, 26, 46); // Primary Color
+        doc.text("FICHA TECNICA MASTER", 14, 22);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(212, 175, 55); // Secondary Color
+        doc.text(`GERADO POR CHEF PRECISION - ${data}`, 14, 28);
+
+        doc.setFontSize(16);
+        doc.setTextColor(26, 26, 46);
+        doc.text(eng.nome.toUpperCase(), 14, 45);
+
+        // Tabela de Componentes
+        const tableBody = eng.componentes.map((c: any, index: number) => {
+            const ins = insumos.find((i: any) => i.id === c.id_insumo);
+            const custo = ins ? (ins.price / ins.quantity) * c.quantidade : 0;
+            return [index + 1, ins?.name || "N/A", `${c.quantidade}${ins?.unit || 'g'}`, `R$ ${custo.toFixed(2)}` ];
+        });
+
+        doc.autoTable({
+            startY: 55,
+            head: [['#', 'INSUMO', 'QUANTIDADE', 'CUSTO (R$)']],
+            body: tableBody,
+            headStyles: { fillColor: [26, 26, 46], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 249, 250] },
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 15;
+
+        // Resumo Financeiro
+        doc.setFontSize(12);
+        doc.text(`CUSTO DE INSUMOS: R$ ${custos.insumos.toFixed(2)}`, 14, finalY);
+        doc.text(`CUSTOS FIXOS (${eng.custos_fixos}%): R$ ${(custos.insumos * (eng.custos_fixos/100)).toFixed(2)}`, 14, finalY + 7);
+        
+        doc.setFontSize(14);
+        doc.setTextColor(212, 175, 55);
+        doc.text(`PRECO SUGERIDO (MARKUP ${eng.margem}x): R$ ${(custos.total * eng.margem).toFixed(2)}`, 14, finalY + 20);
+
+        doc.save(`FICHA_${eng.nome.replace(/\s+/g, '_').toUpperCase()}.pdf`);
+    };
 
     return (
         <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} className="p-10 max-w-4xl mx-auto pb-40">
-            <button onClick={onVoltar} className="mb-10 flex items-center gap-2 text-[10px] font-black text-primary/40 uppercase tracking-widest hover:text-primary transition-colors"><ArrowLeft size={16}/> Voltar para Fichas</button>
+            <div className="flex items-center justify-between mb-10">
+                <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black text-primary/40 uppercase tracking-widest hover:text-primary transition-colors"><ArrowLeft size={16}/> Voltar</button>
+                <button onClick={handleExportarPDF} className="p-4 bg-secondary text-white rounded-2xl shadow-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
+                    <FileText size={16}/> Exportar PDF
+                </button>
+            </div>
             <div className="bg-white p-12 rounded-[5rem] shadow-[0_60px_150px_rgba(26,26,46,0.1)] border border-primary/5">
                 <header className="mb-12 border-b border-primary/5 pb-12">
                    <span className="text-[10px] font-black text-secondary uppercase tracking-[0.4em] block mb-4">Gourmet Engineering Data</span>
@@ -467,17 +534,23 @@ function DetalheEngenharia({ eng, insumos, onVoltar }: any) {
     );
 }
 
-function ConfiguracoesMaster() {
+function ConfiguracoesMaster({ config, setConfig }: any) {
   return (
     <div className="p-12 max-w-4xl mx-auto py-32 text-center flex flex-col items-center">
        <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center text-primary/20 mb-8"><Settings size={48} /></div>
        <h2 className="text-4xl font-black text-primary tracking-tighter uppercase mb-4">Custos Estruturais</h2>
-       <p className="text-primary/40 text-lg max-w-sm font-medium italic mb-12 leading-relaxed">Defina seus custos fixos globais (Energia, Gás, Mão de Obra) para alimentar automaticamente suas fichas.</p>
+       <p className="text-primary/40 text-lg max-w-sm font-medium italic mb-12 leading-relaxed">Defina seus custos fixos globais para alimentar automaticamente suas fichas técnicas.</p>
        
        <div className="w-full max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border border-primary/5 space-y-6">
-          <div className="flex flex-col gap-2 text-left"><label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Mão de Obra (R$/Hora)</label><input type="number" placeholder="0.00" className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/></div>
-          <div className="flex flex-col gap-2 text-left"><label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Gás/Energia (Rateio %)</label><input type="number" placeholder="5%" className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/></div>
-          <button className="w-full py-6 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl">Salvar Configurações</button>
+          <div className="flex flex-col gap-2 text-left">
+             <label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Mão de Obra (R$/Hora)</label>
+             <input type="number" value={config.mao_de_obra} onChange={e => setConfig({...config, mao_de_obra: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/>
+          </div>
+          <div className="flex flex-col gap-2 text-left">
+             <label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Rateio de Custos Fixos (%)</label>
+             <input type="number" value={config.taxa_fixa} onChange={e => setConfig({...config, taxa_fixa: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/>
+          </div>
+          <p className="text-[9px] text-primary/20 font-bold uppercase italic mt-4">Estes valores serão aplicados em todas as suas novas engenharias.</p>
        </div>
     </div>
   );
