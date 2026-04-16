@@ -18,250 +18,177 @@ import {
   X,
   Sparkles,
   ArrowLeft,
-  Trash
+  PieChart,
+  ShoppingBag,
+  Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-// --- Tipagens Elite ---
+// --- Tipagens Focadas em Confeitaria ---
 interface Insumo {
   id: string;
   name: string;
   price: number;
-  quantity: number;
+  quantity: number; // Volume que vem na embalagem (ex: 395g)
   unit: 'g' | 'ml' | 'un';
 }
 
-interface ComponenteReceita {
+interface ItemReceita {
   id_insumo: string;
-  quantidade: number;
+  quantidade_usada: number;
 }
 
-interface Engenharia {
+interface Receita {
   id: string;
   nome: string;
-  componentes: ComponenteReceita[];
-  custos_fixos: number;
-  margem: number;
+  itens: ItemReceita[];
+  rendimento: number; // Quantas unidades ou fatias rende
+  margem_desejada: number; // Markup
 }
 
 export default function ChefPrecision() {
-  const [abaAtiva, setAbaAtiva] = useState<'home' | 'dashboard' | 'insumos' | 'engenharias' | 'configuracoes'>('home');
+  const [abaAtiva, setAbaAtiva] = useState<'home' | 'receitas' | 'insumos' | 'config'>('home');
+  const [receitaEmEdicao, setReceitaEmEdicao] = useState<Receita | null>(null);
   const [isMenuAberto, setIsMenuAberto] = useState(false);
-  const [engenhariaSelecionada, setEngenhariaSelecionada] = useState<Engenharia | null>(null);
   
   const [insumos, setInsumos] = useState<Insumo[]>([]);
-  const [engenharias, setEngenharias] = useState<Engenharia[]>([]);
-  const [config, setConfig] = useState({ mao_de_obra: 0, taxa_fixa: 5 }); // Rateio %
-  const [isLogado, setIsLogado] = useState(false);
+  const [receitas, setReceitas] = useState<Receita[]>([]);
+  const [config, setConfig] = useState({ mao_de_obra: 0, taxa_fixa: 10 });
   const [user, setUser] = useState<any>(null);
   const supabase = createClient();
 
-  // --- Lógica de Sincronização e Auth ---
+  // --- Lógica de Inicialização ---
   useEffect(() => {
-    const carregarSessao = async () => {
+    const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        setIsLogado(true);
         setUser(session.user);
-        buscarDados(session.user.id);
+        carregarDados(session.user.id);
       } else {
-        // Se não logado, carregar do local
-        const localConfig = localStorage.getItem("chef-config");
-        if (localConfig) setConfig(JSON.parse(localConfig));
+        const localIng = localStorage.getItem("chef-insumos");
+        if (localIng) setInsumos(JSON.parse(localIng));
+        const localRec = localStorage.getItem("chef-receitas");
+        if (localRec) setReceitas(JSON.parse(localRec));
+        const localConf = localStorage.getItem("chef-config");
+        if (localConf) setConfig(JSON.parse(localConf));
       }
     };
-    carregarSessao();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setIsLogado(true);
-        setUser(session.user);
-        buscarDados(session.user.id);
-      } else {
-        setIsLogado(false);
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    init();
   }, []);
 
-  const buscarDados = async (userId: string) => {
-    // Buscar Insumos
-    const { data: dataInsumos } = await supabase.from('ingredients').select('*').eq('user_id', userId);
-    if (dataInsumos) setInsumos(dataInsumos);
-
-    // Buscar Engenharias (Receitas)
-    const { data: dataEng } = await supabase.from('recipes').select('*').eq('user_id', userId);
-    if (dataEng) {
-        const formatadas = dataEng.map((e: any) => ({
-            id: e.id,
-            nome: e.name,
-            componentes: e.ingredients || [],
-            custos_fixos: e.fixed_costs || 0,
-            margem: e.markup || 3
-        }));
-        setEngenharias(formatadas);
+  const carregarDados = async (userId: string) => {
+    const { data: dIns } = await supabase.from('ingredients').select('*').eq('user_id', userId);
+    if (dIns) setInsumos(dIns);
+    const { data: dRec } = await supabase.from('recipes').select('*').eq('user_id', userId);
+    if (dRec) {
+        setReceitas(dRec.map((r: any) => ({
+            id: r.id,
+            nome: r.name,
+            itens: r.ingredients || [],
+            rendimento: r.yield || 1,
+            margem_desejada: r.markup || 3
+        })));
     }
-
-    // Buscar Configurações Específicas se houver
-    const { data: configData } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
-    if (configData) {
-        setConfig({ mao_de_obra: configData.mao_de_obra, taxa_fixa: configData.taxa_fixa });
-    } else {
-        const localConfig = localStorage.getItem("chef-config");
-        if (localConfig) setConfig(JSON.parse(localConfig));
-    }
+    const { data: dConf } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+    if (dConf) setConfig({ mao_de_obra: dConf.mao_de_obra, taxa_fixa: dConf.taxa_fixa });
   };
 
-  const fazerLogin = async () => {
-    const email = window.prompt("Digite seu e-mail para acesso Master:");
-    if (!email) return;
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
-    if (error) alert("Erro: " + error.message);
-    else alert("Link enviado! Confira sua caixa de entrada.");
-  };
-
-  const fazerLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
-    setInsumos([]);
-    setEngenharias([]);
-    window.location.reload();
-  };
-
-  // --- Ações de Dados ---
-  const adicionarInsumo = async (novo: Omit<Insumo, 'id'>) => {
-    if (!isLogado) {
-        setInsumos([...insumos, { ...novo, id: Date.now().toString() }]);
+  // --- Funções de Salvamento ---
+  const salvarInsumo = async (novo: Omit<Insumo, 'id'>) => {
+    if (!user) {
+        const item = { ...novo, id: Date.now().toString() };
+        const lista = [...insumos, item];
+        setInsumos(lista);
+        localStorage.setItem("chef-insumos", JSON.stringify(lista));
         return;
     }
-    const { data, error } = await supabase.from('ingredients').insert([{ ...novo, user_id: user.id }]).select();
-    if (!error && data) setInsumos([...insumos, data[0]]);
+    const { data } = await supabase.from('ingredients').insert([{ ...novo, user_id: user.id }]).select();
+    if (data) setInsumos([...insumos, data[0]]);
   };
 
-  const deletarInsumo = async (id: string) => {
-    if (isLogado) await supabase.from('ingredients').delete().eq('id', id);
-    setInsumos(insumos.filter(i => i.id !== id));
+  const excluirInsumo = async (id: string) => {
+    if (user) await supabase.from('ingredients').delete().eq('id', id);
+    const lista = insumos.filter(i => i.id !== id);
+    setInsumos(lista);
+    localStorage.setItem("chef-insumos", JSON.stringify(lista));
   };
 
-  // --- Persistência de Configurações ---
-  useEffect(() => {
-    const salvarConfigNuvem = async () => {
-        if (!isLogado || !user) {
-           localStorage.setItem("chef-config", JSON.stringify(config));
-           return;
-        }
-
-        const { error } = await supabase.from('user_settings').upsert({
-            user_id: user.id,
-            mao_de_obra: config.mao_de_obra,
-            taxa_fixa: config.taxa_fixa,
-            updated_at: new Date().toISOString()
-        });
-        
-        if (error) console.error("Erro ao sincronizar config:", error.message);
-    };
-
-    const timeout = setTimeout(salvarConfigNuvem, 1000); // Delay para não sobrecarregar o banco
-    return () => clearTimeout(timeout);
-  }, [config, isLogado, user]);
-
-  const salvarEngenharia = async (nova: Omit<Engenharia, 'id'>) => {
-    if (!isLogado) {
-        setEngenharias([...engenharias, { ...nova, id: Date.now().toString() }]);
+  const salvarReceitaCompleta = async (nova: Omit<Receita, 'id'>) => {
+    if (!user) {
+        const item = { ...nova, id: Date.now().toString() };
+        const lista = [...receitas, item];
+        setReceitas(lista);
+        localStorage.setItem("chef-receitas", JSON.stringify(lista));
         return;
     }
-    const { data, error } = await supabase.from('recipes').insert([{
+    const { data } = await supabase.from('recipes').insert([{
         name: nova.nome,
-        ingredients: nova.componentes, // Salvando como JSONB
-        fixed_costs: nova.custos_fixos,
-        markup: nova.margem,
+        ingredients: nova.itens,
+        yield: nova.rendimento,
+        markup: nova.margem_desejada,
         user_id: user.id
     }]).select();
-    
-    if (!error && data) {
-        setEngenharias([...engenharias, {
-            id: data[0].id,
-            nome: data[0].name,
-            componentes: data[0].ingredients,
-            custos_fixos: data[0].fixed_costs,
-            margem: data[0].markup
-        }]);
-    }
+    if (data) carregarDados(user.id);
   };
 
-  const deletarEngenharia = async (id: string) => {
-    if (isLogado) await supabase.from('recipes').delete().eq('id', id);
-    setEngenharias(engenharias.filter(e => e.id !== id));
+  const excluirReceita = async (id: string) => {
+    if (user) await supabase.from('recipes').delete().eq('id', id);
+    const lista = receitas.filter(r => r.id !== id);
+    setReceitas(lista);
+    localStorage.setItem("chef-receitas", JSON.stringify(lista));
   };
 
   return (
-    <div className="flex min-h-screen bg-[#FDFBF9] text-[#1A1A2E] font-sans selection:bg-secondary/30">
-      {/* Sidebar de Elite */}
+    <div className="flex min-h-screen bg-[#FDFCFB] text-[#2D2424] font-sans">
+      {/* Menu Lateral Profissional */}
       <AnimatePresence>
         {isMenuAberto && (
-          <motion.div initial={{ x: -400 }} animate={{ x: 0 }} exit={{ x: -400 }} className="fixed inset-y-0 left-0 w-80 bg-primary text-white z-[100] p-10 flex flex-col shadow-[20px_0_60px_rgba(26,26,46,0.3)]">
-             <div className="flex items-center justify-between mb-16">
-                <div className="flex items-center gap-4"><div className="p-3 bg-white/10 rounded-2xl"><ChefHat size={32} className="text-secondary" /></div><span className="font-black text-2xl tracking-tighter italic">Chef<span className="text-secondary">Precision</span></span></div>
-                <button onClick={() => setIsMenuAberto(false)} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors"><X size={20}/></button>
+          <motion.div initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} className="fixed inset-y-0 left-0 w-72 bg-[#1A1A1A] text-white z-[100] p-8 flex flex-col shadow-2xl">
+             <div className="flex items-center justify-between mb-12">
+                <div className="flex items-center gap-3"><ChefHat className="text-[#D4AF37]" size={28} /><span className="font-black text-lg tracking-tighter">CHEF<span className="text-[#D4AF37]">PRECISION</span></span></div>
+                <button onClick={() => setIsMenuAberto(false)}><X size={20}/></button>
              </div>
-             
-             <nav className="flex-1 space-y-3">
+             <nav className="flex-1 space-y-2">
                 {[
-                  { id: 'dashboard', label: 'Dashboard Master', icon: LayoutDashboard },
-                  { id: 'insumos', label: 'Gestão de Insumos', icon: Package },
-                  { id: 'engenharias', label: 'Fichas Técnicas', icon: BookOpen },
-                  { id: 'configuracoes', label: 'Custos & Ajustes', icon: Settings }
+                  { id: 'home', label: 'Painel Geral', icon: LayoutDashboard },
+                  { id: 'insumos', label: 'Meus Ingredientes', icon: ShoppingBag },
+                  { id: 'receitas', label: 'Minhas Receitas', icon: BookOpen },
+                  { id: 'config', label: 'Configurações', icon: Settings }
                 ].map((item) => (
-                  <button key={item.id} onClick={() => { setAbaAtiva(item.id as any); setIsMenuAberto(false); setEngenhariaSelecionada(null); }} className={`w-full flex items-center gap-5 p-5 rounded-[1.5rem] transition-all duration-300 ${abaAtiva === item.id ? "bg-white text-primary shadow-2xl scale-105" : "text-white/40 hover:text-white"}`}>
-                    <item.icon size={22} />
-                    <span className="text-[11px] uppercase font-black tracking-[0.2em]">{item.label}</span>
+                  <button key={item.id} onClick={() => { setAbaAtiva(item.id as any); setIsMenuAberto(false); setReceitaEmEdicao(null); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${abaAtiva === item.id ? "bg-[#D4AF37] text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5"}`}>
+                    <item.icon size={18} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">{item.label}</span>
                   </button>
                 ))}
              </nav>
-
-             <div className="mt-auto border-t border-white/5 pt-10 text-center flex flex-col items-center gap-4">
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em]">Engine v2.0 Elite</p>
-                {isLogado && <button onClick={fazerLogout} className="text-[10px] font-bold text-accent uppercase tracking-widest px-6 py-3 bg-accent/10 rounded-xl hover:bg-accent/20 transition-all">Encerrar Sessão</button>}
-             </div>
+             <div className="mt-auto pt-8 border-t border-white/5 opacity-20 text-center text-[8px] font-bold uppercase tracking-[0.4em]">Ateliê Digital v2.0</div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col">
-          {/* Header Superior */}
-          <header className={`px-8 py-8 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-primary/5 sticky top-0 z-[50] ${abaAtiva === 'home' ? "hidden" : "flex"}`}>
-            <button onClick={() => setIsMenuAberto(true)} className="h-14 w-14 bg-primary text-white rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-primary/20 active:scale-90 transition-transform"><Menu size={24}/></button>
-            <div className="text-center">
-               <span className="text-[10px] font-black uppercase text-secondary tracking-[0.4em] block mb-1">Elite Culinary Management</span>
-               <h2 className="text-sm font-black text-primary uppercase tracking-[0.2em]">Chef Precision Dashboard</h2>
-            </div>
-            <div className="flex items-center gap-3">
-                {!isLogado ? (
-                    <button onClick={fazerLogin} className="px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-[1rem] shadow-xl hover:bg-primary/90 flex items-center gap-2">
-                       <Sparkles size={14} className="text-secondary" /> Master Login
-                    </button>
-                ) : (
-                    <div className="flex items-center gap-3 h-14 bg-white border border-primary/5 px-4 rounded-[1.5rem] shadow-lg">
-                       <span className="text-[10px] font-black text-primary/40 truncate max-w-[100px]">{user?.email}</span>
-                       <div className="h-8 w-8 bg-secondary rounded-full flex items-center justify-center text-white font-black text-[10px]">{user?.email?.charAt(0).toUpperCase()}</div>
-                    </div>
-                )}
-            </div>
+          {/* Header de Navegação */}
+          <header className={`px-6 py-6 bg-white border-b border-[#E5E5E5] flex items-center justify-between sticky top-0 z-50 ${abaAtiva === 'home' ? "hidden" : "flex"}`}>
+             <button onClick={() => setIsMenuAberto(true)} className="h-12 w-12 bg-[#F5F5F5] rounded-xl flex items-center justify-center text-black active:scale-95 transition-all"><Menu size={20}/></button>
+             <div className="text-center">
+                <span className="text-[9px] font-black uppercase text-[#D4AF37] tracking-[0.3em] block mb-0.5">Gestão de Confeitaria</span>
+                <h2 className="text-xs font-black uppercase tracking-widest">Calculadora Expert</h2>
+             </div>
+             <div className="h-12 w-12 bg-[#D4AF37]/10 rounded-full flex items-center justify-center text-[#D4AF37] font-black text-xs border border-[#D4AF37]/20">
+                {user?.email?.charAt(0).toUpperCase() || "U"}
+             </div>
           </header>
 
-          <main className="flex-1 relative">
+          <main className="flex-1 overflow-y-auto">
              <AnimatePresence mode="wait">
-                {abaAtiva === 'home' && <HomeHero onEntrar={() => setAbaAtiva('dashboard')} />}
-                {abaAtiva === 'dashboard' && <MonitoramentoDashboard insumos={insumos} ftecs={engenharias} setAba={setAbaAtiva} />}
-                {abaAtiva === 'insumos' && <GestaoInsumos insumos={insumos} onAdicionar={adicionarInsumo} onDeletar={deletarInsumo} />}
-                {abaAtiva === 'engenharias' && !engenhariaSelecionada && <EngenhariaList engenharias={engenharias} insumos={insumos} onNovo={() => {}} onSalvar={salvarEngenharia} onDeletar={deletarEngenharia} onVer={setEngenhariaSelecionada} />}
-                {abaAtiva === 'engenharias' && engenhariaSelecionada && <DetalheEngenharia eng={engenhariaSelecionada} insumos={insumos} onVoltar={() => setEngenhariaSelecionada(null)} />}
-                {abaAtiva === 'configuracoes' && <ConfiguracoesMaster config={config} setConfig={setConfig} />}
+                {abaAtiva === 'home' && <HomeView onStart={() => setAbaAtiva('receitas')} />}
+                {abaAtiva === 'receitas' && !receitaEmEdicao && <ReceitasView receitas={receitas} insumos={insumos} onNovo={() => setAbaAtiva('receitas')} onExcluir={excluirReceita} onVisualizar={setReceitaEmEdicao} onSalvar={salvarReceitaCompleta} />}
+                {abaAtiva === 'receitas' && receitaEmEdicao && <DetalheCalculo receita={receitaEmEdicao} insumos={insumos} config={config} onVoltar={() => setReceitaEmEdicao(null)} />}
+                {abaAtiva === 'insumos' && <InsumosView insumos={insumos} onAdicionar={salvarInsumo} onExcluir={excluirInsumo} />}
+                {abaAtiva === 'config' && <ConfigView config={config} setConfig={setConfig} user={user} supabase={supabase} />}
              </AnimatePresence>
           </main>
       </div>
@@ -269,329 +196,221 @@ export default function ChefPrecision() {
   );
 }
 
-// --- Componentes Reais e Funcionais ---
+// --- VISÕES REFORMULADAS ---
 
-function HomeHero({ onEntrar }: any) {
+function HomeView({ onStart }: any) {
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-primary flex items-center justify-center p-8 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-secondary/10 blur-[200px] rounded-full translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/10 blur-[150px] rounded-full -translate-x-1/4 translate-y-1/4" />
-            
-            <div className="relative z-10 max-w-4xl text-center flex flex-col items-center">
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="p-8 bg-white/5 backdrop-blur-2xl rounded-[4rem] border border-white/10 mb-12 shadow-[0_40px_100px_rgba(0,0,0,0.5)]">
-                   <ChefHat size={80} className="text-secondary drop-shadow-[0_0_20px_rgba(212,175,55,0.5)]" />
-                </motion.div>
-                <motion.h1 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-7xl font-black text-white leading-tight tracking-tighter mb-8 uppercase italic">Chef <span className="text-secondary not-italic">Precision</span></motion.h1>
-                <p className="text-white/40 text-xl max-w-xl font-medium mb-12 leading-relaxed">Assuma o controle absoluto da sua lucratividade com a ferramenta de engenharia de custos mais sofisticada da culinária gourmet.</p>
-                <button onClick={onEntrar} className="px-16 py-8 bg-secondary text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] shadow-[0_30px_60px_rgba(212,175,55,0.2)] hover:scale-105 active:scale-95 transition-all flex items-center gap-4 group">Começar Gerenciamento <ChevronRight className="group-hover:translate-x-2 transition-transform" /> </button>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#1A1A1A] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+            <div className="absolute top-[-20%] right-[-20%] w-[600px] h-[600px] bg-[#D4AF37]/10 blur-[150px] rounded-full" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="z-10 bg-white/5 backdrop-blur-xl p-10 rounded-[4rem] border border-white/10 shadow-3xl mb-10">
+                <ChefHat size={60} className="text-[#D4AF37] mb-6 mx-auto" />
+                <h1 className="text-5xl font-black text-white leading-none tracking-tighter uppercase mb-6 italic">Chef<br/><span className="text-[#D4AF37] not-italic">Precision</span></h1>
+                <p className="text-white/40 text-lg max-w-sm font-medium leading-relaxed italic mb-10">Transforme suas receitas em lucro real. Simples, rápido e profissional.</p>
+                <button onClick={onStart} className="px-12 py-6 bg-[#D4AF37] text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] flex items-center gap-3 shadow-2xl hover:scale-105 active:scale-95 transition-all mx-auto">Precificar Agora <ChevronRight size={16}/></button>
+            </motion.div>
+        </motion.div>
+    );
+}
+
+function InsumosView({ insumos, onAdicionar, onExcluir }: any) {
+    const [isAdd, setIsAdd] = useState(false);
+    const [form, setForm] = useState({ name: '', price: 0, quantity: 1, unit: 'un' });
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 max-w-3xl mx-auto pb-32">
+            <div className="flex items-center justify-between mb-10">
+                <h2 className="text-3xl font-black tracking-tighter">Ingredientes</h2>
+                <button onClick={() => setIsAdd(true)} className="h-14 w-14 bg-black text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus/></button>
             </div>
-        </motion.div>
-    );
-}
 
-function MonitoramentoDashboard({ insumos, ftecs, setAba }: any) {
-    return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-10 max-w-6xl mx-auto pb-40">
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-              {[
-                  { label: "Insumos Cadastrados", val: insumos.length, color: "bg-primary", icon: Package },
-                  { label: "Fichas de Engenharia", val: ftecs.length, color: "bg-secondary", icon: BookOpen },
-                  { label: "Markup Médio", val: "3.5x", color: "bg-accent", icon: Calculator }
-              ].map((card, i) => (
-                  <div key={i} className="bg-white p-10 rounded-[3.5rem] shadow-2xl border border-primary/5 flex flex-col justify-between h-56 group relative overflow-hidden active:scale-95 transition-all cursor-pointer">
-                      <div className="h-16 w-16 bg-primary/5 rounded-[1.5rem] flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><card.icon size={28} /></div>
-                      <div>
-                         <span className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] block mb-2">{card.label}</span>
-                         <p className="text-5xl font-black text-primary">{card.val}</p>
-                      </div>
-                  </div>
-              ))}
-           </div>
-
-           <div className="bg-primary text-white p-12 rounded-[4rem] shadow-[0_50px_100px_rgba(26,26,46,0.3)] flex items-center justify-between relative overflow-hidden group">
-              <div className="relative z-10 max-w-lg">
-                  <h3 className="text-3xl font-black mb-4 italic">O Lucro está na Precision.</h3>
-                  <p className="text-white/50 font-medium leading-relaxed mb-8 italic">Cada grama não precificada é um pedaço do seu negócio que se perde. Comece criando seus insumos bases.</p>
-                  <button onClick={() => setAba('insumos')} className="px-10 py-5 bg-secondary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center gap-3 active:scale-95 transition-all">Ir para Gestão de Insumos <Plus size={16}/></button>
-              </div>
-              <div className="opacity-10 absolute right-[-5%] top-[-10%] group-hover:rotate-12 transition-transform duration-1000"><Calculator size={300} /></div>
-           </div>
-        </motion.div>
-    );
-}
-
-function GestaoInsumos({ insumos, onAdicionar, onDeletar }: any) {
-    const [isNovo, setIsNovo] = useState(false);
-    const [form, setForm] = useState({ name: '', price: 0, quantity: 1000, unit: 'g' });
-
-    return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 max-w-5xl mx-auto pb-44">
-             <header className="flex items-center justify-between mb-16">
-                 <div>
-                    <h2 className="text-5xl font-black text-primary tracking-tighter">Insumos</h2>
-                    <p className="text-primary/30 font-bold uppercase text-[10px] tracking-widest mt-2">{insumos.length} produtos em estoque global</p>
-                 </div>
-                 <button onClick={() => setIsNovo(true)} className="h-20 w-20 bg-secondary text-white rounded-[2rem] shadow-2xl shadow-secondary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-all"><Plus size={32}/></button>
-             </header>
-
-             <AnimatePresence>
-                 {isNovo && (
-                     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-12 bg-white p-10 rounded-[3.5rem] shadow-2xl border-2 border-secondary/20 space-y-8">
-                        <div className="flex flex-col gap-2"><label className="text-[10px] font-black text-primary/40 uppercase tracking-widest pl-2">Nome do Insumo (Ex: Ninho 400g)</label><input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black text-sm border border-primary/5 focus:border-secondary focus:bg-white transition-all"/></div>
-                        <div className="grid grid-cols-2 gap-6">
-                           <div className="flex flex-col gap-2"><label className="text-[10px] font-black text-primary/40 uppercase tracking-widest pl-2">Preço Pago (R$)</label><input type="number" step="0.01" value={form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl font-black text-sm outline-none border border-primary/5 focus:bg-white transition-all"/></div>
-                           <div className="flex flex-col gap-2"><label className="text-[10px] font-black text-primary/40 uppercase tracking-widest pl-2">Volume/Peso Total</label><input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl font-black text-sm outline-none border border-primary/5 focus:bg-white transition-all"/></div>
-                        </div>
+            <AnimatePresence>
+                {isAdd && (
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="mb-10 bg-white p-8 rounded-[2.5rem] shadow-2xl border border-black/5 space-y-6">
+                        <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/40 tracking-widest pl-2">Nome do Produto</label><input type="text" placeholder="Leite Condensado 395g" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-bold text-sm" /></div>
                         <div className="grid grid-cols-2 gap-4">
-                           <button onClick={() => setIsNovo(false)} className="py-5 bg-primary/5 text-primary/40 font-black text-[10px] uppercase rounded-2xl">Cancelar</button>
-                           <button onClick={() => { onAdicionar(form); setIsNovo(false); setForm({ name: '', price: 0, quantity: 1000, unit: 'g' }); }} className="py-5 bg-secondary text-white font-black text-[10px] uppercase rounded-2xl shadow-xl">Salvar na Base Global</button>
+                            <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/40 tracking-widest pl-2">Preço Pago (R$)</label><input type="number" step="0.01" value={form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-bold text-sm" /></div>
+                            <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/40 tracking-widest pl-2">Unidade/Peso</label><input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-bold text-sm" /></div>
                         </div>
-                     </motion.div>
-                 )}
-             </AnimatePresence>
-
-             <div className="grid gap-6">
-                {insumos.map((i: Insumo) => (
-                    <div key={i.id} className="bg-white p-8 rounded-[3rem] shadow-2xl border border-primary/5 flex items-center justify-between group relative overflow-hidden">
-                        <div className="flex items-center gap-6">
-                            <div className="h-14 w-14 bg-primary/5 rounded-2xl flex items-center justify-center text-primary font-black text-xs uppercase">{i.unit}</div>
-                            <div>
-                                <h4 className="font-black text-xl text-primary tracking-tight">{i.name}</h4>
-                                <p className="text-[10px] font-black text-primary/30 uppercase tracking-widest">Custo Unitário: R$ {(i.price / i.quantity).toFixed(4)}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-6">
-                            <div className="text-right"><span className="text-[9px] font-black text-primary/20 uppercase tracking-widest block mb-1">Valor do Produto</span><span className="text-xl font-black text-primary">R$ {i.price.toFixed(2)}</span></div>
-                            <button onClick={() => onDeletar(i.id)} className="p-4 bg-accent/5 text-accent/20 rounded-2xl hover:bg-accent/10 hover:text-accent transition-all"><Trash2 size={20}/></button>
-                        </div>
-                    </div>
-                ))}
-             </div>
-        </motion.div>
-    );
-}
-
-function EngenhariaList({ engenharias, insumos, onSalvar, onDeletar, onVer }: any) {
-    const [isNovo, setIsNovo] = useState(false);
-    const [form, setForm] = useState<Partial<Engenharia>>({ nome: '', componentes: [], margem: 3 });
-    const [selectId, setSelectId] = useState("");
-    const [selectQt, setSelectQt] = useState(0);
-
-    const addComp = () => {
-        if (!selectId || selectQt <= 0) return;
-        setForm({...form, componentes: [...(form.componentes || []), { id_insumo: selectId, quantidade: selectQt }] });
-        setSelectId(""); setSelectQt(0);
-    };
-
-    const calcularCustoTotal = (comps: ComponenteReceita[]) => {
-        return comps.reduce((acc, curr) => {
-            const ins = insumos.find((i: any) => i.id === curr.id_insumo);
-            return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade : 0);
-        }, 0);
-    };
-
-    return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 max-w-5xl mx-auto pb-44">
-             <header className="flex items-center justify-between mb-16">
-                 <div>
-                    <h2 className="text-5xl font-black text-primary tracking-tighter">Engenharias</h2>
-                    <p className="text-primary/30 font-bold uppercase text-[10px] tracking-widest mt-2">Suas Fichas de Produção Técnicas</p>
-                 </div>
-                 <button onClick={() => setIsNovo(true)} className="h-20 w-20 bg-secondary text-white rounded-[2rem] shadow-2xl shadow-secondary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-all"><Plus size={32}/></button>
-             </header>
-
-             <AnimatePresence>
-                {isNovo && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-12 mb-16 bg-white rounded-[4rem] shadow-2xl border-4 border-primary/5 space-y-10">
-                        <div className="flex flex-col gap-2"><label className="text-[10px] font-black text-primary/40 uppercase tracking-widest pl-2">Título da Engenharia (Ex: Massa de Red Velvet Supreme)</label><input type="text" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black text-sm border border-primary/5 focus:bg-white transition-all"/></div>
-                        
-                        <div className="space-y-6">
-                            <h4 className="text-[10px] font-black text-secondary uppercase tracking-[0.4em] mb-4">Composição Técnica</h4>
-                            <div className="flex gap-4">
-                                <select value={selectId} onChange={e => setSelectId(e.target.value)} className="flex-1 bg-primary/5 p-5 rounded-2xl outline-none font-black text-xs border border-primary/5">
-                                    <option value="">Buscar Insumo Global...</option>
-                                    {insumos.map((i: any) => <option key={i.id} value={i.id}>{i.name}</option>)}
-                                </select>
-                                <input type="number" placeholder="Qtd" value={selectQt} onChange={e => setSelectQt(parseFloat(e.target.value))} className="w-28 bg-primary/5 p-5 rounded-2xl outline-none font-black text-xs border border-primary/5" />
-                                <button onClick={addComp} className="h-16 w-16 bg-primary text-white rounded-2xl flex items-center justify-center active:scale-90 transition-all"><Plus size={20}/></button>
-                            </div>
-                            <div className="space-y-2 max-h-64 overflow-y-auto">
-                                {form.componentes?.map((c, idx) => {
-                                    const ins = insumos.find((i: any) => i.id === c.id_insumo);
-                                    return (
-                                        <div key={idx} className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl">
-                                            <span className="text-xs font-bold text-primary">{ins?.name}</span>
-                                            <span className="text-xs font-black text-secondary">{c.quantidade}g</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-6">
-                             <button onClick={() => setIsNovo(false)} className="py-5 bg-primary/5 text-primary/40 font-black text-[10px] uppercase rounded-2xl">Cancelar</button>
-                             <button onClick={() => { onSalvar(form); setIsNovo(false); setForm({ nome: '', componentes: [], margem: 3 }); }} className="py-5 bg-secondary text-white font-black text-[10px] uppercase rounded-2xl shadow-xl">Finalizar Engenharia</button>
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                            <button onClick={() => setIsAdd(false)} className="py-5 bg-[#F5F5F5] text-black/40 font-black text-[10px] uppercase rounded-2xl">Cancelar</button>
+                            <button onClick={() => { onAdicionar(form); setIsAdd(false); setForm({ name: '', price: 0, quantity: 1, unit: 'un' }); }} className="py-5 bg-[#D4AF37] text-white font-black text-[10px] uppercase rounded-2xl shadow-xl">Cadastrar</button>
                         </div>
                     </motion.div>
                 )}
-             </AnimatePresence>
+            </AnimatePresence>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {engenharias.map((e: Engenharia) => (
-                    <div key={e.id} className="bg-white p-10 rounded-[4rem] shadow-2xl border border-primary/5 group relative overflow-hidden hover:border-secondary/20 transition-all duration-500">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-2xl font-black text-primary leading-none truncate pr-4">{e.nome}</h3>
-                            <div className="flex gap-2">
-                                <button onClick={() => onVer(e)} className="p-4 bg-secondary/10 text-secondary rounded-2xl hover:bg-secondary hover:text-white transition-all"><FileText size={18}/></button>
-                                <button onClick={() => onDeletar(e.id)} className="p-4 bg-accent/5 text-accent/20 rounded-2xl hover:bg-accent/10 hover:text-accent transition-all"><Trash size={18}/></button>
-                            </div>
+            <div className="grid gap-4">
+                {insumos.map((i: Insumo) => (
+                    <div key={i.id} className="bg-white p-5 rounded-[2rem] shadow-md flex items-center justify-between group border border-transparent hover:border-[#D4AF37]/20 transition-all">
+                        <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 bg-[#F5F5F5] rounded-xl flex items-center justify-center text-xs font-black uppercase text-black/40">{i.unit}</div>
+                            <div><h4 className="font-extrabold text-sm">{i.name}</h4><p className="text-[10px] font-bold text-black/20 uppercase tracking-widest">R$ {i.price.toFixed(2)} por {i.quantity}</p></div>
                         </div>
-                        <div className="flex items-center justify-between mb-10">
-                            <div><span className="text-[9px] font-black text-primary/20 uppercase tracking-widest block mb-1">Custo Bruto</span><span className="text-xl font-black text-primary">R$ {calcularCustoTotal(e.componentes).toFixed(2)}</span></div>
-                            <div className="text-right"><span className="text-[9px] font-black text-primary/20 uppercase tracking-widest block mb-1">Preço Sugerido</span><span className="text-xl font-black text-secondary">R$ {(calcularCustoTotal(e.componentes) * e.margem).toFixed(2)}</span></div>
-                           <button onClick={() => onVer(e)} className="w-full py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl active:scale-95 transition-all">Analisar Lucratividade</button>
+                        <button onClick={() => onExcluir(i.id)} className="h-10 w-10 text-red-500/20 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                     </div>
                 ))}
             </div>
-            {engenharias.length === 0 && (
-                <div className="py-24 text-center opacity-10 flex flex-col items-center">
-                    <BookOpen size={64} className="mb-6"/>
-                    <span className="text-[11px] font-black uppercase tracking-[0.5em]">Nenhuma ficha técnica criada</span>
-                </div>
-            )}
         </motion.div>
     );
 }
 
-function DetalheEngenharia({ eng, insumos, onVoltar }: any) {
-    const calcularCustos = () => {
-        const custoInsumos = eng.componentes.reduce((acc: any, curr: any) => {
-            const ins = insumos.find((i: any) => i.id === curr.id_insumo);
-            return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade : 0);
-        }, 0);
-        return {
-            insumos: custoInsumos,
-            total: custoInsumos + (custoInsumos * (eng.custos_fixos / 100))
-        };
+function ReceitasView({ receitas, insumos, onVisualizar, onSalvar, onExcluir }: any) {
+    const [isNovo, setIsNovo] = useState(false);
+    const [novo, setNovo] = useState<Partial<Receita>>({ nome: '', itens: [], rendimento: 1, margem_desejada: 3 });
+    const [selId, setSelId] = useState("");
+    const [selQt, setSelQt] = useState(0);
+
+    const addItem = () => {
+        if (!selId || selQt <= 0) return;
+        setNovo({...novo, itens: [...(novo.itens || []), { id_insumo: selId, quantidade_usada: selQt }]});
+        setSelId(""); setSelQt(0);
     };
 
-    const custos = calcularCustos();
-
-    const handleExportarPDF = () => {
-        const doc = new jsPDF() as any;
-        const data = new Date().toLocaleDateString();
-
-        // Estilização do PDF
-        doc.setFontSize(22);
-        doc.setTextColor(26, 26, 46); // Primary Color
-        doc.text("FICHA TECNICA MASTER", 14, 22);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(212, 175, 55); // Secondary Color
-        doc.text(`GERADO POR CHEF PRECISION - ${data}`, 14, 28);
-
-        doc.setFontSize(16);
-        doc.setTextColor(26, 26, 46);
-        doc.text(eng.nome.toUpperCase(), 14, 45);
-
-        // Tabela de Componentes
-        const tableBody = eng.componentes.map((c: any, index: number) => {
-            const ins = insumos.find((i: any) => i.id === c.id_insumo);
-            const custo = ins ? (ins.price / ins.quantity) * c.quantidade : 0;
-            return [index + 1, ins?.name || "N/A", `${c.quantidade}${ins?.unit || 'g'}`, `R$ ${custo.toFixed(2)}` ];
-        });
-
-        doc.autoTable({
-            startY: 55,
-            head: [['#', 'INSUMO', 'QUANTIDADE', 'CUSTO (R$)']],
-            body: tableBody,
-            headStyles: { fillColor: [26, 26, 46], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [248, 249, 250] },
-        });
-
-        const finalY = (doc as any).lastAutoTable.finalY + 15;
-
-        // Resumo Financeiro
-        doc.setFontSize(12);
-        doc.text(`CUSTO DE INSUMOS: R$ ${custos.insumos.toFixed(2)}`, 14, finalY);
-        doc.text(`CUSTOS FIXOS (${eng.custos_fixos}%): R$ ${(custos.insumos * (eng.custos_fixos/100)).toFixed(2)}`, 14, finalY + 7);
-        
-        doc.setFontSize(14);
-        doc.setTextColor(212, 175, 55);
-        doc.text(`PRECO SUGERIDO (MARKUP ${eng.margem}x): R$ ${(custos.total * eng.margem).toFixed(2)}`, 14, finalY + 20);
-
-        doc.save(`FICHA_${eng.nome.replace(/\s+/g, '_').toUpperCase()}.pdf`);
+    const totalCusto = (itens: ItemReceita[]) => {
+        return itens.reduce((acc, curr) => {
+            const ins = insumos.find((i: any) => i.id === curr.id_insumo);
+            return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade_usada : 0);
+        }, 0);
     };
 
     return (
-        <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} className="p-10 max-w-4xl mx-auto pb-40">
-            <div className="flex items-center justify-between mb-10">
-                <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black text-primary/40 uppercase tracking-widest hover:text-primary transition-colors"><ArrowLeft size={16}/> Voltar</button>
-                <button onClick={handleExportarPDF} className="p-4 bg-secondary text-white rounded-2xl shadow-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
-                    <FileText size={16}/> Exportar PDF
-                </button>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 max-w-4xl mx-auto pb-32">
+            <header className="flex items-center justify-between mb-10">
+                <h2 className="text-3xl font-black tracking-tighter">Minhas Fichas</h2>
+                <button onClick={() => setIsNovo(true)} className="h-14 w-14 bg-[#D4AF37] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus/></button>
+            </header>
+
+            <AnimatePresence>
+                {isNovo && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1 }} className="mb-12 bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-[#FDFCFB] space-y-8">
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase text-[#D4AF37] tracking-[0.4em] pl-2 border-l-4 border-[#D4AF37]">Dados da Receita</h3>
+                            <input type="text" placeholder="Ex: Bolo de Brigadeiro Belga" value={novo.nome} onChange={e => setNovo({...novo, nome: e.target.value})} className="w-full bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
+                            <div className="grid grid-cols-2 gap-4">
+                               <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Quanto rende? (un/kg/fatias)</label><input type="number" value={novo.rendimento} onChange={e => setNovo({...novo, rendimento: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
+                               <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Margem de Lucro (Ex: 3)</label><input type="number" value={novo.margem_desejada} onChange={e => setNovo({...novo, margem_desejada: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-[10px] font-black uppercase text-[#D4AF37] tracking-[0.4em] pl-2 border-l-4 border-[#D4AF37]">Ingredientes Usados</h3>
+                            <div className="flex gap-2">
+                                <select value={selId} onChange={e => setSelId(e.target.value)} className="flex-1 bg-[#F5F5F5] p-5 rounded-2xl outline-none font-bold text-xs">
+                                    <option value="">Buscar Ingrediente...</option>
+                                    {insumos.map((i: any) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                </select>
+                                <input type="number" placeholder="Qtd" value={selQt} onChange={e => setSelQt(parseFloat(e.target.value))} className="w-24 bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-xs" />
+                                <button onClick={addItem} className="h-16 w-16 bg-black text-white rounded-2xl flex items-center justify-center active:scale-90 transition-all"><Plus size={20}/></button>
+                            </div>
+                            <div className="space-y-2">
+                                {novo.itens?.map((it, idx) => (
+                                    <div key={idx} className="flex justify-between p-4 bg-[#F5F5F5] rounded-xl font-bold text-xs text-black/40"><span>{insumos.find((i:any)=>i.id === it.id_insumo)?.name}</span><span>{it.quantidade_usada}</span></div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                            <button onClick={() => setIsNovo(false)} className="py-5 bg-[#F5F5F5] text-black/40 font-black text-[10px] uppercase rounded-2xl">Descartar</button>
+                            <button onClick={() => { onSalvar(novo); setIsNovo(false); }} className="py-5 bg-black text-white font-black text-[10px] uppercase rounded-2xl shadow-xl flex items-center justify-center gap-2"><Sparkles size={14}/> Salvar Receita</button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {receitas.map((r: Receita) => (
+                    <div key={r.id} className="bg-white p-8 rounded-[3rem] shadow-xl border border-black/5 flex flex-col justify-between group active:scale-95 transition-all">
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-xl font-black italic">{r.nome}</h3>
+                            <button onClick={() => onExcluir(r.id)} className="h-10 w-10 text-red-500/10 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                        </div>
+                        <div className="flex items-end justify-between">
+                            <div><span className="text-[9px] font-black text-black/20 uppercase tracking-[0.2em] block">Custo p/{r.rendimento > 1 ? "Batida" : "Unid"}</span><p className="text-lg font-black">R$ {totalCusto(r.itens).toFixed(2)}</p></div>
+                            <button onClick={() => onVisualizar(r)} className="h-14 w-14 bg-[#F5F5F5] rounded-2xl flex items-center justify-center text-[#D4AF37] hover:bg-[#D4AF37] hover:text-white transition-all"><ChevronRight/></button>
+                        </div>
+                    </div>
+                ))}
             </div>
-            <div className="bg-white p-12 rounded-[5rem] shadow-[0_60px_150px_rgba(26,26,46,0.1)] border border-primary/5">
-                <header className="mb-12 border-b border-primary/5 pb-12">
-                   <span className="text-[10px] font-black text-secondary uppercase tracking-[0.4em] block mb-4">Gourmet Engineering Data</span>
-                   <h2 className="text-5xl font-black text-primary tracking-tighter leading-none mb-6">{eng.nome}</h2>
-                   <div className="flex gap-4">
-                      <div className="px-5 py-3 bg-primary/5 rounded-2xl font-black text-[10px] text-primary/40 uppercase">Markup {eng.margem}x</div>
-                      <div className="px-5 py-3 bg-secondary/10 rounded-2xl font-black text-[10px] text-secondary uppercase">Premium Ficha</div>
-                   </div>
+        </motion.div>
+    );
+}
+
+function DetalheCalculo({ receita, insumos, config, onVoltar }: any) {
+    const custoLata = receita.itens.reduce((acc: any, curr: any) => {
+        const ins = insumos.find((i: any) => i.id === curr.id_insumo);
+        return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade_usada : 0);
+    }, 0);
+    
+    const custoEstrutural = custoLata * (config.taxa_fixa / 100);
+    const custoTotal = custoLata + custoEstrutural;
+    const precoSugerido = custoTotal * receita.margem_desejada;
+
+    return (
+        <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} className="p-6 max-w-4xl mx-auto pb-40">
+            <button onClick={onVoltar} className="mb-8 flex items-center gap-2 text-[10px] font-black opacity-20 uppercase tracking-widest"><ArrowLeft size={16}/> Voltar</button>
+            <div className="bg-white p-10 rounded-[4rem] shadow-3xl border border-black/5 space-y-12">
+                <header className="text-center">
+                    <h2 className="text-4xl font-black italic mb-3">{receita.nome}</h2>
+                    <div className="flex justify-center gap-3"><span className="px-4 py-2 bg-[#F5F5F5] rounded-full text-[9px] font-bold uppercase tracking-widest">Rende {receita.rendimento} uni</span></div>
                 </header>
 
-                <div className="space-y-8 mb-16">
-                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">Detalhamento de Custos</h4>
-                    {eng.componentes.map((c: any, idx: number) => {
-                        const ins = insumos.find((i: any) => i.id === c.id_insumo);
-                        const custo = ins ? (ins.price / ins.quantity) * c.quantidade : 0;
-                        return (
-                            <div key={idx} className="flex items-center justify-between p-6 bg-primary/[0.02] rounded-[2rem] border border-primary/5 group hover:bg-white hover:shadow-xl transition-all">
-                                <div className="flex items-center gap-5">
-                                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center font-black text-xs text-primary/20 shadow-sm">{idx + 1}</div>
-                                    <span className="font-bold text-primary">{ins?.name} <span className="text-[11px] text-primary/30 ml-2">({c.quantidade}g)</span></span>
-                                </div>
-                                <span className="font-black text-primary text-sm tracking-tight">R$ {custo.toFixed(2)}</span>
-                            </div>
-                        );
-                    })}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-8 bg-[#F5F5F5] rounded-[3rem] text-center">
+                        <span className="text-[10px] font-black uppercase text-black/30 tracking-widest block mb-1">Custo da Receita</span>
+                        <p className="text-3xl font-black">R$ {custoTotal.toFixed(2)}</p>
+                    </div>
+                    <div className="p-8 bg-[#D4AF37] rounded-[3rem] text-center text-white shadow-2xl">
+                        <span className="text-[10px] font-black uppercase text-white/50 tracking-widest block mb-1">Custo por Unidade</span>
+                        <p className="text-3xl font-black">R$ {(custoTotal / receita.rendimento).toFixed(2)}</p>
+                    </div>
                 </div>
 
-                <div className="p-12 bg-primary rounded-[3.5rem] text-white flex flex-col items-center gap-4 text-center">
-                   <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.5em]">Preço de Venda Pró-Elite</span>
-                   <div className="text-6xl font-black text-secondary">R$ {(custoTotal * eng.margem).toFixed(2)}</div>
-                   <p className="text-white/40 text-xs font-bold mt-4 uppercase tracking-widest italic">Considerando Custo de R$ {custoTotal.toFixed(2)}</p>
+                <div className="bg-[#1A1A1A] text-white p-12 rounded-[4rem] flex flex-col items-center gap-6 relative overflow-hidden text-center">
+                    <div className="relative z-10">
+                        <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-4 block">Preço de Venda Sugerido</span>
+                        <h3 className="text-7xl font-black text-white italic">R$ {precoSugerido.toFixed(2)}</h3>
+                        <p className="text-white/20 text-[9px] font-black uppercase tracking-[0.2em] mt-6">Considerando lucro de 100% sobre o custo + {config.taxa_fixa}% de fixos</p>
+                    </div>
+                    <div className="absolute top-[-20%] right-[-10%] opacity-5 rotate-12"><DollarSign size={200}/></div>
+                </div>
+
+                <div className="space-y-4">
+                   <h4 className="text-[10px] font-black text-black/40 uppercase tracking-[0.3em] pl-4">Lista de Materiais</h4>
+                   <div className="grid gap-2">
+                       {receita.itens.map((it:any, idx:number) => {
+                           const ins = insumos.find((i:any)=>i.id === it.id_insumo);
+                           return (
+                               <div key={idx} className="flex justify-between p-5 bg-[#FDFCFB] border border-black/5 rounded-2xl items-center">
+                                   <span className="text-xs font-bold">{ins?.name} <span className="text-[10px] opacity-20 ml-2">({it.quantidade_usada} {ins?.unit})</span></span>
+                                   <span className="text-xs font-black">R$ {((ins?.price / ins?.quantity) * it.quantidade_usada).toFixed(2)}</span>
+                               </div>
+                           )
+                       })}
+                   </div>
                 </div>
             </div>
         </motion.div>
     );
 }
 
-function ConfiguracoesMaster({ config, setConfig }: any) {
-  return (
-    <div className="p-12 max-w-4xl mx-auto py-32 text-center flex flex-col items-center">
-       <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center text-primary/20 mb-8"><Settings size={48} /></div>
-       <h2 className="text-4xl font-black text-primary tracking-tighter uppercase mb-4">Custos Estruturais</h2>
-       <p className="text-primary/40 text-lg max-w-sm font-medium italic mb-12 leading-relaxed">Defina seus custos fixos globais para alimentar automaticamente suas fichas técnicas.</p>
-       
-       <div className="w-full max-md:p-0 max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border border-primary/5 space-y-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4">
-             <div className="px-3 py-1 bg-secondary/10 rounded-full flex items-center gap-2 animate-pulse">
-                <div className="h-1.5 w-1.5 bg-secondary rounded-full"></div>
-                <span className="text-[8px] font-black text-secondary uppercase">Sincronizado</span>
-             </div>
-          </div>
-          <div className="flex flex-col gap-2 text-left pt-6">
-             <label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Mão de Obra (R$/Hora)</label>
-             <input type="number" value={config.mao_de_obra} onChange={e => setConfig({...config, mao_de_obra: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/>
-          </div>
-          <div className="flex flex-col gap-2 text-left">
-             <label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Rateio de Custos Fixos (%)</label>
-             <input type="number" value={config.taxa_fixa} onChange={e => setConfig({...config, taxa_fixa: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/>
-          </div>
-          <p className="text-[9px] text-primary/20 font-bold uppercase italic mt-4">Estes valores serão aplicados em todas as suas novas engenharias.</p>
-       </div>
-    </div>
-  );
+function ConfigView({ config, setConfig, user, supabase }: any) {
+    const handleSave = async () => {
+        if (!user) {
+            localStorage.setItem("chef-config", JSON.stringify(config));
+            alert("Salvo no navegador!"); return;
+        }
+        await supabase.from('user_settings').upsert({ user_id: user.id, ...config });
+        alert("Sincronizado na Nuvem!");
+    };
+
+    return (
+        <div className="p-10 max-w-xl mx-auto py-24 text-center">
+            <h2 className="text-4xl font-black tracking-tighter mb-12 italic">Configurações Master</h2>
+            <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
+                <div className="flex flex-col gap-2 text-left"><label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Mão de Obra (R$/Hora)</label><input type="number" value={config.mao_de_obra} onChange={e => setConfig({...config, mao_de_obra: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" /></div>
+                <div className="flex flex-col gap-2 text-left"><label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Rateio Gás/Luz (%)</label><input type="number" value={config.taxa_fixa} onChange={e => setConfig({...config, taxa_fixa: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" /></div>
+                <button onClick={handleSave} className="w-full py-6 bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3"><Zap size={16} className="text-[#D4AF37]"/> Salvar Preferências</button>
+            </div>
+        </div>
+    );
 }
