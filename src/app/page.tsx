@@ -67,6 +67,10 @@ export default function ChefPrecision() {
         setIsLogado(true);
         setUser(session.user);
         buscarDados(session.user.id);
+      } else {
+        // Se não logado, carregar do local
+        const localConfig = localStorage.getItem("chef-config");
+        if (localConfig) setConfig(JSON.parse(localConfig));
       }
     };
     carregarSessao();
@@ -93,16 +97,19 @@ export default function ChefPrecision() {
     // Buscar Engenharias (Receitas)
     const { data: dataEng } = await supabase.from('recipes').select('*').eq('user_id', userId);
     if (dataEng) {
-        // Mapear componentes (Aqui assumimos que a coluna 'ingredients' no DB é um JSONB)
         const formatadas = dataEng.map((e: any) => ({
             id: e.id,
             nome: e.name,
-            componentes: e.ingredients || [], // Reutilizando coluna ingredients como componentes
+            componentes: e.ingredients || [],
             custos_fixos: e.fixed_costs || 0,
             margem: e.markup || 3
         }));
         setEngenharias(formatadas);
     }
+
+    // Buscar Configurações Específicas se houver (Opcional, usando local por enquanto para agilidade)
+    const localConfig = localStorage.getItem("chef-config");
+    if (localConfig) setConfig(JSON.parse(localConfig));
   };
 
   const fazerLogin = async () => {
@@ -135,6 +142,13 @@ export default function ChefPrecision() {
     if (isLogado) await supabase.from('ingredients').delete().eq('id', id);
     setInsumos(insumos.filter(i => i.id !== id));
   };
+
+  // --- Persistência de Configurações ---
+  useEffect(() => {
+    if (config.mao_de_obra > 0 || config.taxa_fixa !== 5) {
+        localStorage.setItem("chef-config", JSON.stringify(config));
+    }
+  }, [config]);
 
   const salvarEngenharia = async (nova: Omit<Engenharia, 'id'>) => {
     if (!isLogado) {
@@ -541,8 +555,14 @@ function ConfiguracoesMaster({ config, setConfig }: any) {
        <h2 className="text-4xl font-black text-primary tracking-tighter uppercase mb-4">Custos Estruturais</h2>
        <p className="text-primary/40 text-lg max-w-sm font-medium italic mb-12 leading-relaxed">Defina seus custos fixos globais para alimentar automaticamente suas fichas técnicas.</p>
        
-       <div className="w-full max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border border-primary/5 space-y-6">
-          <div className="flex flex-col gap-2 text-left">
+       <div className="w-full max-md:p-0 max-w-md bg-white p-10 rounded-[3rem] shadow-2xl border border-primary/5 space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4">
+             <div className="px-3 py-1 bg-secondary/10 rounded-full flex items-center gap-2 animate-pulse">
+                <div className="h-1.5 w-1.5 bg-secondary rounded-full"></div>
+                <span className="text-[8px] font-black text-secondary uppercase">Sincronizado</span>
+             </div>
+          </div>
+          <div className="flex flex-col gap-2 text-left pt-6">
              <label className="text-[10px] font-black text-primary/30 uppercase tracking-widest pl-2">Mão de Obra (R$/Hora)</label>
              <input type="number" value={config.mao_de_obra} onChange={e => setConfig({...config, mao_de_obra: parseFloat(e.target.value)})} className="bg-primary/5 p-6 rounded-2xl outline-none font-black"/>
           </div>
