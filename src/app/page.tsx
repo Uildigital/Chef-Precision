@@ -107,9 +107,14 @@ export default function ChefPrecision() {
         setEngenharias(formatadas);
     }
 
-    // Buscar Configurações Específicas se houver (Opcional, usando local por enquanto para agilidade)
-    const localConfig = localStorage.getItem("chef-config");
-    if (localConfig) setConfig(JSON.parse(localConfig));
+    // Buscar Configurações Específicas se houver
+    const { data: configData } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+    if (configData) {
+        setConfig({ mao_de_obra: configData.mao_de_obra, taxa_fixa: configData.taxa_fixa });
+    } else {
+        const localConfig = localStorage.getItem("chef-config");
+        if (localConfig) setConfig(JSON.parse(localConfig));
+    }
   };
 
   const fazerLogin = async () => {
@@ -145,10 +150,25 @@ export default function ChefPrecision() {
 
   // --- Persistência de Configurações ---
   useEffect(() => {
-    if (config.mao_de_obra > 0 || config.taxa_fixa !== 5) {
-        localStorage.setItem("chef-config", JSON.stringify(config));
-    }
-  }, [config]);
+    const salvarConfigNuvem = async () => {
+        if (!isLogado || !user) {
+           localStorage.setItem("chef-config", JSON.stringify(config));
+           return;
+        }
+
+        const { error } = await supabase.from('user_settings').upsert({
+            user_id: user.id,
+            mao_de_obra: config.mao_de_obra,
+            taxa_fixa: config.taxa_fixa,
+            updated_at: new Date().toISOString()
+        });
+        
+        if (error) console.error("Erro ao sincronizar config:", error.message);
+    };
+
+    const timeout = setTimeout(salvarConfigNuvem, 1000); // Delay para não sobrecarregar o banco
+    return () => clearTimeout(timeout);
+  }, [config, isLogado, user]);
 
   const salvarEngenharia = async (nova: Omit<Engenharia, 'id'>) => {
     if (!isLogado) {
