@@ -103,11 +103,20 @@ export default function ChefPrecision() {
             nome: r.name,
             itens: r.ingredients || [],
             rendimento: r.yield || 1,
-            margem_desejada: r.markup || 3
+            margem_desejada: r.markup || 3,
+            tempo_preparo: r.prep_time || 0,
+            tempo_forno: r.oven_time || 0
         })));
     }
     const { data: dConf } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
-    if (dConf) setConfig({ mao_de_obra: dConf.mao_de_obra, taxa_fixa: dConf.taxa_fixa });
+    if (dConf) setConfig({ 
+        ...config,
+        mao_de_obra: dConf.mao_de_obra || 0, 
+        taxa_fixa: dConf.taxa_fixa || 10,
+        salario_desejado: dConf.salario_desejado || 2500,
+        horas_trabalhadas_mes: dConf.horas_trabalhadas_mes || 160,
+        contas: dConf.contas || config.contas
+    });
   };
 
   // --- Funções de Salvamento ---
@@ -143,6 +152,8 @@ export default function ChefPrecision() {
         ingredients: nova.itens,
         yield: nova.rendimento,
         markup: nova.margem_desejada,
+        prep_time: nova.tempo_preparo,
+        oven_time: nova.tempo_forno,
         user_id: user.id
     }]).select();
     if (data) carregarDados(user.id);
@@ -306,7 +317,7 @@ function InsumosView({ insumos, onAdicionar, onExcluir }: any) {
 
 function ReceitasView({ receitas, insumos, onVisualizar, onSalvar, onExcluir }: any) {
     const [isNovo, setIsNovo] = useState(false);
-    const [novo, setNovo] = useState<Partial<Receita>>({ nome: '', itens: [], rendimento: 1, margem_desejada: 3 });
+    const [novo, setNovo] = useState<Partial<Receita>>({ nome: '', itens: [], rendimento: 1, margem_desejada: 3, tempo_preparo: 0, tempo_forno: 0 });
     const [selId, setSelId] = useState("");
     const [selQt, setSelQt] = useState(0);
 
@@ -481,7 +492,14 @@ function ConfigView({ config, setConfig, user, supabase }: any) {
             localStorage.setItem("chef-config", JSON.stringify(config));
             alert("Salvo no navegador!"); return;
         }
-        await supabase.from('user_settings').upsert({ user_id: user.id, ...config });
+        await supabase.from('user_settings').upsert({ 
+            user_id: user.id, 
+            mao_de_obra: config.mao_de_obra,
+            taxa_fixa: config.taxa_fixa,
+            salario_desejado: config.salario_desejado,
+            horas_trabalhadas_mes: config.horas_trabalhadas_mes,
+            contas: config.contas
+        });
         alert("Sincronizado na Nuvem!");
     };
 
