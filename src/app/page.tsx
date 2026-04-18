@@ -87,7 +87,10 @@ export default function ChefPrecision() {
         const localRec = localStorage.getItem("chef-receitas");
         if (localRec) setReceitas(JSON.parse(localRec));
         const localConf = localStorage.getItem("chef-config");
-        if (localConf) setConfig(JSON.parse(localConf));
+        if (localConf) {
+            const parsed = JSON.parse(localConf);
+            setConfig(prev => ({ ...prev, ...parsed, contas: { ...prev.contas, ...parsed.contas } }));
+        }
       }
     };
     init();
@@ -109,14 +112,16 @@ export default function ChefPrecision() {
         })));
     }
     const { data: dConf } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
-    if (dConf) setConfig({ 
-        ...config,
-        mao_de_obra: dConf.mao_de_obra || 0, 
-        taxa_fixa: dConf.taxa_fixa || 10,
-        salario_desejado: dConf.salario_desejado || 2500,
-        horas_trabalhadas_mes: dConf.horas_trabalhadas_mes || 160,
-        contas: dConf.contas || config.contas
-    });
+    if (dConf) {
+        setConfig(prev => ({ 
+            ...prev,
+            mao_de_obra: dConf.mao_de_obra ?? prev.mao_de_obra, 
+            taxa_fixa: dConf.taxa_fixa ?? prev.taxa_fixa,
+            salario_desejado: dConf.salario_desejado ?? prev.salario_desejado,
+            horas_trabalhadas_mes: dConf.horas_trabalhadas_mes ?? prev.horas_trabalhadas_mes,
+            contas: { ...prev.contas, ...(dConf.contas || {}) }
+        }));
+    }
   };
 
   // --- Funções de Salvamento ---
@@ -409,7 +414,7 @@ function DetalheCalculo({ receita, insumos, config, onVoltar }: any) {
     // Cálculos de Minutos
     const tempoTotal = (receita.tempo_preparo || 0) + (receita.tempo_forno || 0);
     const custoMinutoSalario = (config.salario_desejado / config.horas_trabalhadas_mes) / 60;
-    const totalContas = Object.values(config.contas).reduce((a: any, b: any) => a + b, 0) as number;
+    const totalContas = Object.values(config.contas || {}).reduce((a: any, b: any) => a + (b || 0), 0) as number;
     const custoMinutoOperacional = (totalContas / config.horas_trabalhadas_mes) / 60;
 
     const custoMaoDeObra = (receita.tempo_preparo || 0) * custoMinutoSalario;
@@ -532,19 +537,19 @@ function ConfigView({ config, setConfig, user, supabase }: any) {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Energia Elétrica</label>
-                            <input type="number" value={config.contas.luz} onChange={e => setConfig({...config, contas: {...config.contas, luz: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                            <input type="number" value={config.contas?.luz || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), luz: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Gás de Cozinha</label>
-                            <input type="number" value={config.contas.gas} onChange={e => setConfig({...config, contas: {...config.contas, gas: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                            <input type="number" value={config.contas?.gas || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), gas: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Água</label>
-                            <input type="number" value={config.contas.agua} onChange={e => setConfig({...config, contas: {...config.contas, agua: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                            <input type="number" value={config.contas?.agua || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), agua: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Internet/Tel</label>
-                            <input type="number" value={config.contas.internet} onChange={e => setConfig({...config, contas: {...config.contas, internet: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                            <input type="number" value={config.contas?.internet || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), internet: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
                         </div>
                     </div>
                 </div>
