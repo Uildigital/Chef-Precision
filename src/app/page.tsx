@@ -19,6 +19,7 @@ import { createClient } from "@/utils/supabase/client";
 import { LandingAgent } from "@/components/agents/LandingAgent"; // Manteve para o Splash
 import { InventoryAgent } from "@/components/agents/InventoryAgent";
 import { PricingWizardAgent } from "@/components/agents/RecipeAgent";
+import { ProductionAgent } from "@/components/agents/ProductionAgent";
 import { FinanceAgent } from "@/components/agents/FinanceAgent";
 import { MathSkill } from "@/lib/logic/MathSkill";
 
