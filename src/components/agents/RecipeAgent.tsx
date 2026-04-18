@@ -97,7 +97,7 @@ export function PricingWizardAgent({ insumos, config, onSalvar, onVoltar }: any)
                                     <div key={idx} className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex items-center justify-between">
                                         <span className="text-xs font-black uppercase text-white/40">{ins?.name}</span>
                                         <div className="flex items-center gap-3">
-                                            <input type="number" placeholder="Qtd" value={it.quantidade_used} onChange={e => {
+                                            <input type="number" placeholder="Qtd" value={it.quantidade_usada} onChange={e => {
                                                 const novos = [...form.itens];
                                                 novos[idx].quantidade_usada = parseFloat(e.target.value);
                                                 setForm({...form, itens: novos});

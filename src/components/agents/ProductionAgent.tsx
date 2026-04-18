@@ -18,27 +18,34 @@ export function ProductionAgent({ receitas, insumos, onVoltar }: any) {
     const consolidado = useMemo(() => {
         const itens: { [key: string]: { name: string, total: number, unit: string } } = {};
         
-        listaProducao.forEach(prod => {
-            const rec = receitas.find((r:any) => r.id === prod.id_receita);
-            if (!rec) return;
-            
-            const fator = prod.quantity_multiplier || (prod.quantidade / rec.rendimento);
-            
-            rec.itens.forEach((it: any) => {
-                const ins = insumos.find((i: any) => i.id === it.id_insumo);
-                if (!ins) return;
+        try {
+            listaProducao.forEach(prod => {
+                const rec = receitas.find((r:any) => r.id === prod.id_receita);
+                if (!rec || !rec.rendimento) return;
                 
-                if (itens[it.id_insumo]) {
-                    itens[it.id_insumo].total += it.quantidade_usada * fator;
-                } else {
-                    itens[it.id_insumo] = {
-                        name: ins.name,
-                        total: it.quantidade_usada * fator,
-                        unit: ins.unit
-                    };
-                }
+                const fator = prod.quantidade / parseFloat(rec.rendimento);
+                const listaItens = rec.itens || rec.ingredientes || [];
+                
+                listaItens.forEach((it: any) => {
+                    const ins = insumos.find((i: any) => i.id === it.id_insumo);
+                    if (!ins) return;
+                    
+                    const qtdUsada = parseFloat(it.quantidade_usada) || 0;
+                    
+                    if (itens[it.id_insumo]) {
+                        itens[it.id_insumo].total += qtdUsada * fator;
+                    } else {
+                        itens[it.id_insumo] = {
+                            name: ins.name,
+                            total: qtdUsada * fator,
+                            unit: ins.unit
+                        };
+                    }
+                });
             });
-        });
+        } catch (error) {
+            console.error("Render Error:", error);
+        }
         
         return Object.values(itens);
     }, [listaProducao, receitas, insumos]);
