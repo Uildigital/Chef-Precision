@@ -40,7 +40,7 @@ export function InventoryAgent({ insumos, onAdicionar, onExcluir }: any) {
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-4">
                             <button onClick={() => setIsAdd(false)} className="py-5 bg-[#F5F5F5] text-black/40 font-black text-[10px] uppercase rounded-2xl">Cancelar</button>
-                            <button onClick={() => { onAdicionar(form); setIsAdd(false); setForm({ name: '', price: 0, quantity: 1, unit: 'un' }); }} className="py-5 bg-[#D4AF37] text-white font-black text-[10px] uppercase rounded-2xl shadow-xl">Cadastrar Insumo</button>
+                            <button onClick={() => { onAdicionar(form); setIsAdd(false); setForm({ name: '', price: 0, quantity: 1, unit: 'g', yield_percentage: 100 }); }} className="py-5 bg-[#D4AF37] text-white font-black text-[10px] uppercase rounded-2xl shadow-xl">Cadastrar Insumo</button>
                         </div>
                     </motion.div>
                 )}
