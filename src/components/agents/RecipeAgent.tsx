@@ -1,202 +1,192 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, ChevronRight, ArrowLeft, DollarSign, Sparkles } from "lucide-react";
+import { 
+    ChevronRight, 
+    ArrowLeft, 
+    Minus, 
+    Plus, 
+    Sparkles, 
+    Zap, 
+    Heart, 
+    DollarSign,
+    Check
+} from "lucide-react";
 import { MathSkill } from "@/lib/logic/MathSkill";
 
-export function RecipeAgent({ receitas, insumos, onVisualizar, onSalvar, onExcluir, receitaEmEdicao, onVoltar, config }: any) {
-    const [isNovo, setIsNovo] = useState(false);
-    const [novo, setNovo] = useState<any>({ nome: '', itens: [], rendimento: 1, margem_desejada: 3, tempo_preparo: 0, tempo_forno: 0 });
-    const [selId, setSelId] = useState("");
-    const [selQt, setSelQt] = useState(0);
+export function PricingWizardAgent({ insumos, config, onSalvar, onVoltar }: any) {
+    const [step, setStep] = useState(1);
+    const [form, setForm] = useState<any>({ 
+        nome: '', 
+        itens: [], 
+        rendimento: 20, 
+        margem_desejada: 3.0, 
+        tempo_preparo: 0, 
+        tempo_forno: 0 
+    });
 
-    const addItem = () => {
-        if (!selId || selQt <= 0) return;
-        setNovo({ ...novo, itens: [...(novo.itens || []), { id_insumo: selId, quantidade_usada: selQt }] });
-        setSelId(""); setSelQt(0);
+    const totalSteps = 4;
+
+    const addItem = (id: string) => {
+        const itemExistente = form.itens.find((it: any) => it.id_insumo === id);
+        if (itemExistente) return;
+        setForm({ ...form, itens: [...form.itens, { id_insumo: id, quantidade_usada: 0 }] });
     };
 
-    if (receitaEmEdicao) {
-        return <DetalheCalculo receita={receitaEmEdicao} insumos={insumos} config={config} onVoltar={onVoltar} />;
-    }
+    const next = () => setStep(s => Math.min(s + 1, totalSteps + 1));
+    const back = () => setStep(s => Math.max(s - 1, 1));
 
     return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 max-w-4xl mx-auto pb-32">
-            <header className="flex items-center justify-between mb-10">
-                <h2 className="text-3xl font-black tracking-tighter">Fichas Técnicas</h2>
-                <button onClick={() => setIsNovo(true)} className="h-14 w-14 bg-[#D4AF37] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus /></button>
-            </header>
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="pb-32">
+            {/* Progresso sutil */}
+            {step <= totalSteps && (
+                <div className="flex gap-1 mb-8">
+                    {[1, 2, 3, 4].map(s => (
+                        <div key={s} className={`h-1 flex-1 rounded-full transition-all duration-500 ${step >= s ? "bg-[#D4AF37]" : "bg-white/5"}`} />
+                    ))}
+                </div>
+            )}
 
-            <AnimatePresence>
-                {isNovo && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1 }} className="mb-12 bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-[#FDFCFB] space-y-8">
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase text-[#D4AF37] tracking-[0.4em] pl-2 border-l-4 border-[#D4AF37]">Nova Receita</h3>
-                            <input type="text" placeholder="Ex: Bolo de Brigadeiro Belga" value={novo.nome} onChange={e => setNovo({ ...novo, nome: e.target.value })} className="w-full bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Rendimento (un)</label><input type="number" value={novo.rendimento} onChange={e => setNovo({ ...novo, rendimento: parseFloat(e.target.value) })} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
-                                <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Margem Desejada</label><input type="number" value={novo.margem_desejada} onChange={e => setNovo({ ...novo, margem_desejada: parseFloat(e.target.value) })} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Tempo Preparo (Min)</label><input type="number" value={novo.tempo_preparo} onChange={e => setNovo({...novo, tempo_preparo: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
-                               <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Tempo Forno (Min)</label><input type="number" value={novo.tempo_forno} onChange={e => setNovo({...novo, tempo_forno: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black uppercase text-[#D4AF37] tracking-[0.4em] pl-2 border-l-4 border-[#D4AF37]">Composição</h3>
-                            <div className="flex gap-2">
-                                <select value={selId} onChange={e => setSelId(e.target.value)} className="flex-1 bg-[#F5F5F5] p-5 rounded-2xl outline-none font-bold text-xs">
-                                    <option value="">Ingrediente...</option>
-                                    {insumos.map((i: any) => <option key={i.id} value={i.id}>{i.name}</option>)}
-                                </select>
-                                <input type="number" placeholder="Qtd" value={selQt} onChange={e => setSelQt(parseFloat(e.target.value))} className="w-24 bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-xs" />
-                                <button onClick={addItem} className="h-16 w-16 bg-black text-white rounded-2xl flex items-center justify-center active:scale-90 transition-all"><Plus size={20} /></button>
+            <AnimatePresence mode="wait">
+                {/* PASSO 1: Identidade */}
+                {step === 1 && (
+                    <motion.div key="s1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-10">
+                        <header>
+                            <h2 className="text-4xl font-black italic tracking-tighter leading-none mb-4">Qual delícia<br/>vamos calcular?</h2>
+                            <p className="text-white/30 text-xs font-medium italic">Dê um nome e defina quanto essa receita rende.</p>
+                        </header>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-[#D4AF37] uppercase tracking-[0.3em] pl-4">Nome da Receita</label>
+                                <input type="text" placeholder="Ex: Brigadeiro Belga" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} className="w-full bg-white/5 border-b border-white/20 p-8 text-2xl font-black outline-none focus:border-[#D4AF37] transition-all" />
                             </div>
                             <div className="space-y-2">
-                                {novo.itens?.map((it: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between p-4 bg-[#F5F5F5] rounded-xl font-bold text-xs text-black/40"><span>{insumos.find((i: any) => i.id === it.id_insumo)?.name}</span><span>{it.quantidade_usada}</span></div>
-                                ))}
+                                <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] pl-4">Rendimento Vital (un/kg)</label>
+                                <div className="flex items-center justify-between bg-white/5 p-4 rounded-[2rem]">
+                                    <button onClick={() => setForm({...form, rendimento: Math.max(1, form.rendimento - 1)})} className="h-14 w-14 bg-white/5 rounded-2xl flex items-center justify-center text-white/40"><Minus/></button>
+                                    <span className="text-2xl font-black italic">{form.rendimento}</span>
+                                    <button onClick={() => setForm({...form, rendimento: form.rendimento + 1})} className="h-14 w-14 bg-white/5 rounded-2xl flex items-center justify-center text-white/40"><Plus/></button>
+                                </div>
                             </div>
                         </div>
+                        <button disabled={!form.nome} onClick={next} className="w-full h-20 bg-[#D4AF37] text-black rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-4 disabled:opacity-20 transition-all">Próximo Passo <ChevronRight/></button>
+                    </motion.div>
+                )}
 
-                        <div className="grid grid-cols-2 gap-4 pt-4">
-                            <button onClick={() => setIsNovo(false)} className="py-5 bg-[#F5F5F5] text-black/40 font-black text-[10px] uppercase rounded-2xl">Descartar</button>
-                            <button onClick={() => { onSalvar(novo); setIsNovo(false); }} className="py-5 bg-black text-white font-black text-[10px] uppercase rounded-2xl shadow-xl flex items-center justify-center gap-2"><Sparkles size={14} /> Criar Ficha</button>
+                {/* PASSO 2: Ingredientes */}
+                {step === 2 && (
+                    <motion.div key="s2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+                        <header>
+                            <h2 className="text-3xl font-black italic tracking-tighter mb-2">Ingredientes</h2>
+                            <p className="text-white/30 text-xs font-medium">Selecione o que você usou e defina a quantidade.</p>
+                        </header>
+
+                        <div className="grid gap-3 max-h-[40vh] overflow-y-auto pr-2">
+                            {insumos.map((i: any) => (
+                                <button key={i.id} onClick={() => addItem(i.id)} className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${form.itens.find((it:any)=>it.id_insumo === i.id) ? "bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]" : "bg-white/5 border-white/5 text-white/40"}`}>
+                                    <span className="text-xs font-bold uppercase">{i.name}</span>
+                                    {form.itens.find((it:any)=>it.id_insumo === i.id) ? <Check size={16}/> : <Plus size={16}/>}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="space-y-4">
+                            {form.itens.map((it: any, idx: number) => {
+                                const ins = insumos.find((i:any)=>i.id === it.id_insumo);
+                                return (
+                                    <div key={idx} className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex items-center justify-between">
+                                        <span className="text-xs font-black uppercase text-white/40">{ins?.name}</span>
+                                        <div className="flex items-center gap-3">
+                                            <input type="number" placeholder="Qtd" value={it.quantidade_used} onChange={e => {
+                                                const novos = [...form.itens];
+                                                novos[idx].quantidade_usada = parseFloat(e.target.value);
+                                                setForm({...form, itens: novos});
+                                            }} className="w-24 bg-black/40 border-b border-[#D4AF37]/20 p-2 text-center font-black outline-none focus:border-[#D4AF37]" />
+                                            <span className="text-[10px] font-black opacity-20">{ins?.unit}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex gap-4">
+                           <button onClick={back} className="h-20 w-20 bg-white/5 rounded-[2rem] flex items-center justify-center text-white/20"><ArrowLeft/></button>
+                           <button disabled={form.itens.length === 0} onClick={next} className="flex-1 h-20 bg-[#D4AF37] text-black rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-4 disabled:opacity-20 transition-all">Próximo Passo <ChevronRight/></button>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* PASSO 3: Tempo e Esforço */}
+                {step === 3 && (
+                    <motion.div key="s3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-10">
+                        <header>
+                            <h2 className="text-3xl font-black italic tracking-tighter mb-2">Tempo é Dinheiro</h2>
+                            <p className="text-white/30 text-xs font-medium">Quanto tempo você gasta com as mãos na massa?</p>
+                        </header>
+                        <div className="space-y-8">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-[#D4AF37] uppercase tracking-[0.3em] pl-4">Produção Manual (Minutos)</label>
+                                <input type="number" value={form.tempo_preparo} onChange={e => setForm({...form, tempo_preparo: parseInt(e.target.value)})} className="w-full bg-white/5 border-b border-white/20 p-8 text-4xl font-black outline-none focus:border-[#D4AF37] transition-all text-center" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] pl-4">Tempo de Forno (Minutos)</label>
+                                <input type="number" value={form.tempo_forno} onChange={e => setForm({...form, tempo_forno: parseInt(e.target.value)})} className="w-full bg-white/5 border-b border-white/20 p-8 text-4xl font-black outline-none focus:border-white/40 transition-all text-center" />
+                            </div>
+                        </div>
+                        <div className="flex gap-4">
+                           <button onClick={back} className="h-20 w-20 bg-white/5 rounded-[2rem] flex items-center justify-center text-white/20"><ArrowLeft/></button>
+                           <button onClick={next} className="flex-1 h-20 bg-[#D4AF37] text-black rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-4 transition-all">Ver Resultado <Sparkles/></button>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* PASSO 4: Resultado Mágico */}
+                {step === 4 && (
+                    <motion.div key="s4" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
+                        <header className="text-center">
+                            <div className="h-20 w-20 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Zap className="text-[#D4AF37]" size={32}/>
+                            </div>
+                            <h2 className="text-3xl font-black italic tracking-tighter">Cálculo Concluído!</h2>
+                        </header>
+
+                        {/* Card Elite */}
+                        <div className="bg-[#D4AF37] p-10 rounded-[4rem] text-black shadow-3xl shadow-[#D4AF37]/20 relative overflow-hidden text-center">
+                             <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40 mb-4 block">Sugestão de Venda</span>
+                             <h3 className="text-7xl font-black italic leading-none mb-6">
+                                {MathSkill.formatarMoeda(
+                                    (MathSkill.calcularCustoIngredientes(form.itens, insumos) + 
+                                    MathSkill.calcularCustoOperacional(form, config).laborCost + 
+                                    MathSkill.calcularCustoOperacional(form, config).operationalCost) * 3
+                                )}
+                             </h3>
+                             <div className="flex justify-center gap-2">
+                                 <span className="px-5 py-2 bg-black/5 rounded-full text-[9px] font-black uppercase">Custo Unitário: {MathSkill.formatarMoeda((MathSkill.calcularCustoIngredientes(form.itens, insumos) + MathSkill.calcularCustoOperacional(form, config).laborCost + MathSkill.calcularCustoOperacional(form, config).operationalCost) / form.rendimento)}</span>
+                             </div>
+                             <div className="absolute top-[-20%] right-[-10%] opacity-10 rotate-12"><DollarSign size={200} /></div>
+                        </div>
+
+                        <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5 space-y-6">
+                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
+                                 <span>Insumos</span>
+                                 <span className="text-white">{MathSkill.formatarMoeda(MathSkill.calcularCustoIngredientes(form.itens, insumos))}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
+                                 <span>Mão de Obra</span>
+                                 <span className="text-white">{MathSkill.formatarMoeda(MathSkill.calcularCustoOperacional(form, config).laborCost)}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
+                                 <span>Contas Fixas</span>
+                                 <span className="text-white">{MathSkill.formatarMoeda(MathSkill.calcularCustoOperacional(form, config).operationalCost)}</span>
+                             </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => setStep(1)} className="py-6 bg-white/5 text-white/40 rounded-[2rem] font-black text-xs uppercase tracking-widest">Recalcular</button>
+                            <button onClick={() => { onSalvar(form); onVoltar(); }} className="py-6 bg-white text-black rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"><Heart size={14} fill="currentColor"/> Salvar Ficha</button>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {receitas.map((r: any) => (
-                    <div key={r.id} className="bg-white p-8 rounded-[3rem] shadow-xl border border-black/5 flex flex-col justify-between group active:scale-95 transition-all">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-xl font-black italic">{r.nome}</h3>
-                            <button onClick={() => onExcluir(r.id)} className="h-10 w-10 text-red-500/10 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                        </div>
-                        <div className="flex items-end justify-between">
-                            <div><span className="text-[9px] font-black text-black/20 uppercase tracking-[0.2em] block">Custo p/ Receita</span><p className="text-lg font-black">R$ {MathSkill.calcularCustoIngredientes(r.itens, insumos).toFixed(2)}</p></div>
-                            <button onClick={() => onVisualizar(r)} className="h-14 w-14 bg-[#F5F5F5] rounded-2xl flex items-center justify-center text-[#D4AF37] hover:bg-[#D4AF37] hover:text-white transition-all"><ChevronRight /></button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </motion.div>
-    );
-}
-
-function DetalheCalculo({ receita, insumos, config, onVoltar }: any) {
-    const custoIngredientes = MathSkill.calcularCustoIngredientes(receita.itens, insumos);
-    const { laborCost, operationalCost } = MathSkill.calcularCustoOperacional(receita, config);
-    
-    const subtotal = custoIngredientes + laborCost + operationalCost;
-    const custoTotal = subtotal * (1 + (config.taxa_fixa / 100));
-    const precoSugerido = custoTotal * (receita.margem_desejada || 3);
-    const tempoTotal = (receita.tempo_preparo || 0) + (receita.tempo_forno || 0);
-
-    return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 max-w-5xl mx-auto pb-40">
-            <div className="flex items-center justify-between mb-8">
-                <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black opacity-40 uppercase tracking-widest hover:opacity-100 transition-opacity"><ArrowLeft size={16} /> Voltar para Fichas</button>
-                <div className="px-6 py-2 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full">
-                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest">Relatório de Lucratividade v2.1</span>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Coluna de Detalhes da Receita */}
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-black/5">
-                        <header className="mb-10 border-b border-black/5 pb-8">
-                            <h2 className="text-4xl font-black italic mb-2">{receita.nome}</h2>
-                            <div className="flex gap-4">
-                                <span className="text-[10px] font-black uppercase text-black/40 bg-[#F5F5F5] px-3 py-1 rounded-full">Rendimento: {receita.rendimento} un</span>
-                                <span className="text-[10px] font-black uppercase text-black/40 bg-[#F5F5F5] px-3 py-1 rounded-full">Tempo Total: {tempoTotal} min</span>
-                            </div>
-                        </header>
-
-                        <div className="space-y-6">
-                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Composição de Custos</h3>
-                            <div className="grid gap-3">
-                                {receita.itens.map((it: any, idx: number) => {
-                                    const ins = insumos.find((i: any) => i.id === it.id_insumo);
-                                    if (!ins) return null;
-                                    const itemCost = MathSkill.calcularCustoIngredientes([it], insumos);
-                                    return (
-                                        <div key={idx} className="flex justify-between items-center p-5 bg-[#FDFCFB] border border-black/5 rounded-2xl hover:border-[#D4AF37]/20 transition-all group">
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-2 w-2 bg-[#D4AF37] rounded-full group-hover:scale-150 transition-transform"></div>
-                                                <div>
-                                                    <p className="text-sm font-bold uppercase">{ins.name}</p>
-                                                    <p className="text-[9px] font-black text-black/20 uppercase tracking-wider">{it.quantidade_usada}{ins.unit} • Compra: {ins.quantity}{ins.unit} p/ R$ {ins.price.toFixed(2)}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-black">{MathSkill.formatarMoeda(itemCost)}</p>
-                                                {ins.yield_percentage < 100 && (
-                                                    <p className="text-[8px] font-bold text-red-400 uppercase">Considerando {ins.yield_percentage}% de aproveitamento</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Coluna Financeira (O Painel de Decisão) */}
-                <div className="space-y-8">
-                    <div className="bg-[#1A1A1A] text-white p-10 rounded-[4rem] shadow-3xl relative overflow-hidden">
-                        <div className="relative z-10 space-y-8 text-center">
-                            <div>
-                                <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-4 block">Preço de Venda Sugerido</span>
-                                <h3 className="text-6xl font-black italic">{MathSkill.formatarMoeda(precoSugerido)}</h3>
-                                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-4">Markup Aplicado: {receita.margem_desejada}x</p>
-                            </div>
-
-                            <div className="pt-8 border-t border-white/10 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Custo de Produção</span>
-                                    <span className="text-sm font-black">{MathSkill.formatarMoeda(custoTotal)}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Lucro por Batida</span>
-                                    <span className="text-sm font-black text-[#D4AF37]">{MathSkill.formatarMoeda(precoSugerido - custoTotal)}</span>
-                                </div>
-                                <div className="flex justify-between items-center pt-2">
-                                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Custo p/ Unidade</span>
-                                    <span className="text-sm font-black">{MathSkill.formatarMoeda(custoTotal / receita.rendimento)}</span>
-                                </div>
-                            </div>
-
-                            <button className="w-full py-5 bg-[#D4AF37] text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 shadow-xl hover:scale-105 active:scale-95 transition-all">
-                                <DollarSign size={16} /> Exportar Relatório 
-                            </button>
-                        </div>
-                        <div className="absolute top-[-20%] right-[-10%] opacity-5 rotate-12"><DollarSign size={200} /></div>
-                    </div>
-
-                    <div className="bg-white p-8 rounded-[3rem] border border-black/5 space-y-6">
-                        <h4 className="text-[10px] font-black uppercase text-black/30 tracking-[0.3em] text-center">Resumo Operacional</h4>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2"><div className="h-1.5 w-1.5 bg-blue-400 rounded-full"></div><span className="text-[9px] font-black opacity-40 uppercase">Mão de Obra</span></div>
-                                <span className="text-xs font-black">{MathSkill.formatarMoeda(laborCost)}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2"><div className="h-1.5 w-1.5 bg-orange-400 rounded-full"></div><span className="text-[9px] font-black opacity-40 uppercase">Custo Fixo (Rateio)</span></div>
-                                <span className="text-xs font-black">{MathSkill.formatarMoeda(operationalCost)}</span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 border-t border-black/5 font-black">
-                                <span className="text-[9px] opacity-40 uppercase">Total Operacional</span>
-                                <span className="text-xs">{MathSkill.formatarMoeda(laborCost + operationalCost)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </motion.div>
     );
 }

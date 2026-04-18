@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
-import { Zap } from "lucide-react";
+import { ArrowLeft, Save, User, Clock, Wallet, Info } from "lucide-react";
 
-export function FinanceAgent({ config, setConfig, user, supabase }: any) {
+export function FinanceAgent({ config, setConfig, user, supabase, onVoltar }: any) {
     const handleSave = async () => {
         if (!user) {
             localStorage.setItem("chef-config", JSON.stringify(config));
@@ -10,68 +10,73 @@ export function FinanceAgent({ config, setConfig, user, supabase }: any) {
         }
         await supabase.from('user_settings').upsert({ 
             user_id: user.id, 
-            mao_de_obra: config.mao_de_obra,
-            taxa_fixa: config.taxa_fixa,
             salario_desejado: config.salario_desejado,
             horas_trabalhadas_mes: config.horas_trabalhadas_mes,
             contas: config.contas
         });
-        alert("Sincronizado na Nuvem!");
+        alert("Configurações atualizadas!");
     };
 
     return (
-        <div className="p-10 max-w-2xl mx-auto py-24">
-            <h2 className="text-4xl font-black tracking-tighter mb-12 italic text-center">Configurações Master</h2>
-            
-            <div className="grid gap-8">
-                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
-                    <h3 className="text-xs font-black uppercase text-[#D4AF37] tracking-[0.3em]">Definição de Pro-Labore</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Salário Desejado (R$)</label>
-                            <input type="number" value={config.salario_desejado} onChange={e => setConfig({...config, salario_desejado: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
+        <div className="pb-32">
+            <header className="mb-10">
+                <button onClick={onVoltar} className="mb-6 h-10 w-10 bg-white/5 rounded-xl flex items-center justify-center text-white/40"><ArrowLeft size={18}/></button>
+                <h2 className="text-3xl font-black italic">Configurações</h2>
+                <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-2">Dê a ordem financeira ao seu ateliê</p>
+            </header>
+
+            <div className="space-y-6">
+                {/* Perfil Simplificado */}
+                <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5 space-y-8">
+                     <div className="flex items-center gap-4 text-[#D4AF37]">
+                         <User size={20} />
+                         <h3 className="text-xs font-black uppercase tracking-[0.3em]">Qual seu Pro-Labore?</h3>
+                     </div>
+                     <div className="space-y-4">
+                        <div className="space-y-2">
+                             <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] pl-2">Salário Mensal Esperado</label>
+                             <div className="relative">
+                                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-black">R$</span>
+                                 <input type="number" value={config.salario_desejado} onChange={e => setConfig({...config, salario_desejado: parseFloat(e.target.value)})} className="w-full bg-black/40 border border-white/5 p-6 pl-14 rounded-2xl outline-none focus:border-[#D4AF37] font-black text-lg" />
+                             </div>
                         </div>
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Horas de Trabalho / Mês</label>
-                            <input type="number" value={config.horas_trabalhadas_mes} onChange={e => setConfig({...config, horas_trabalhadas_mes: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
+                        <div className="space-y-2">
+                             <label className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] pl-2">Horas de Trabalho p/ Mês</label>
+                             <div className="relative">
+                                 <Clock className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+                                 <input type="number" value={config.horas_trabalhadas_mes} onChange={e => setConfig({...config, horas_trabalhadas_mes: parseFloat(e.target.value)})} className="w-full bg-black/40 border border-white/5 p-6 pl-16 rounded-2xl outline-none focus:border-[#D4AF37] font-black text-lg" />
+                             </div>
                         </div>
-                    </div>
-                    <div className="p-6 bg-[#D4AF37]/5 rounded-2xl">
-                        <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">Seu valor/hora atual: R$ {(config.salario_desejado / config.horas_trabalhadas_mes || 0).toFixed(2)}</p>
-                    </div>
+                     </div>
+                     <div className="p-6 bg-[#D4AF37]/5 rounded-2xl border border-[#D4AF37]/10 flex items-center gap-4">
+                         <Info size={16} className="text-[#D4AF37]" />
+                         <p className="text-[10px] font-bold text-[#D4AF37]/80 uppercase tracking-widest">Seu valor/hora está em: R$ {(config.salario_desejado / config.horas_trabalhadas_mes || 0).toFixed(2)}</p>
+                     </div>
                 </div>
 
-                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
-                    <h3 className="text-xs font-black uppercase text-[#D4AF37] tracking-[0.3em]">Custos Fixos Mensais</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Energia Elétrica</label>
-                            <input type="number" value={config.contas?.luz || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), luz: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Gás de Cozinha</label>
-                            <input type="number" value={config.contas?.gas || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), gas: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Água</label>
-                            <input type="number" value={config.contas?.agua || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), agua: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Internet/Tel</label>
-                            <input type="number" value={config.contas?.internet || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), internet: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
-                        </div>
-                    </div>
+                <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5 space-y-6">
+                     <div className="flex items-center gap-4 text-white/40">
+                         <Wallet size={20} />
+                         <h4 className="text-xs font-black uppercase tracking-[0.3em]">Custos Fixos da Cozinha</h4>
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { label: 'Energia', key: 'luz' },
+                            { label: 'Gás', key: 'gas' },
+                            { label: 'Água', key: 'agua' },
+                            { label: 'Internet', key: 'internet' }
+                        ].map(c => (
+                            <div key={c.key} className="space-y-2">
+                                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest pl-2">{c.label}</label>
+                                <input type="number" value={config.contas?.[c.key] || 0} onChange={e => setConfig({...config, contas: {...(config.contas || {}), [c.key]: parseFloat(e.target.value)}})} className="w-full bg-black/40 border border-white/5 p-5 rounded-xl outline-none focus:border-white/20 font-bold" />
+                            </div>
+                        ))}
+                     </div>
                 </div>
 
-                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Margem de Erro/Extra (%)</label>
-                        <input type="number" value={config.taxa_fixa} onChange={e => setConfig({...config, taxa_fixa: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
-                    </div>
-                    <button onClick={handleSave} className="w-full py-6 bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3">
-                        <Zap size={16} className="text-[#D4AF37]"/> Salvar Preferências
-                    </button>
-                </div>
+                <button onClick={handleSave} className="w-full py-8 bg-[#D4AF37] text-black rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl shadow-[#D4AF37]/10 flex items-center justify-center gap-3 active:scale-95 transition-all">
+                    <Save size={18}/> Salvar Global
+                </button>
             </div>
         </div>
     );
