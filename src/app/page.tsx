@@ -167,6 +167,7 @@ export default function ChefPrecisionV3() {
 
                 {view === 'wizard' && <PricingWizardAgent insumos={insumos} config={config} onSalvar={salvarReceita} onVoltar={() => setView('dashboard')} />}
                 {view === 'inventory' && <InventoryAgent insumos={insumos} onAdicionar={salvarInsumo} onExcluir={()=>{}} onVoltar={() => setView('dashboard')} />}
+                {view === 'production' && <ProductionAgent receitas={receitas} insumos={insumos} onVoltar={() => setView('dashboard')} />}
                 {view === 'settings' && <FinanceAgent config={config} setConfig={setConfig} user={user} supabase={supabase} onVoltar={() => setView('dashboard')} />}
             </AnimatePresence>
         </main>
