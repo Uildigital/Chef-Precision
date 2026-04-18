@@ -47,16 +47,30 @@ interface Receita {
   itens: ItemReceita[];
   rendimento: number; // Quantas unidades ou fatias rende
   margem_desejada: number; // Markup
+  tempo_preparo: number; // Minutos
+  tempo_forno: number; // Minutos
 }
 
 export default function ChefPrecision() {
-  const [abaAtiva, setAbaAtiva] = useState<'home' | 'receitas' | 'insumos' | 'config'>('home');
+  const [abaAtiva, setAbaAtiva] = useState<'home' | 'receitas' | 'insumos' | 'config' | 'planejamento'>('home');
   const [receitaEmEdicao, setReceitaEmEdicao] = useState<Receita | null>(null);
   const [isMenuAberto, setIsMenuAberto] = useState(false);
   
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [receitas, setReceitas] = useState<Receita[]>([]);
-  const [config, setConfig] = useState({ mao_de_obra: 0, taxa_fixa: 10 });
+  const [config, setConfig] = useState({ 
+    mao_de_obra: 0, 
+    taxa_fixa: 10,
+    salario_desejado: 2500,
+    horas_trabalhadas_mes: 160,
+    contas: {
+      luz: 150,
+      agua: 80,
+      gas: 120,
+      internet: 100,
+      outros: 0
+    }
+  });
   const [user, setUser] = useState<any>(null);
   const supabase = createClient();
 
@@ -159,7 +173,9 @@ export default function ChefPrecision() {
             { id_insumo: '5', quantidade_usada: 15 },
         ],
         rendimento: 25,
-        margem_desejada: 3.5
+        margem_desejada: 3.5,
+        tempo_preparo: 45,
+        tempo_forno: 0
     };
 
     setInsumos(demoInsumos);
@@ -185,6 +201,7 @@ export default function ChefPrecision() {
                   { id: 'home', label: 'Painel Geral', icon: LayoutDashboard },
                   { id: 'insumos', label: 'Meus Ingredientes', icon: ShoppingBag },
                   { id: 'receitas', label: 'Minhas Receitas', icon: BookOpen },
+                  { id: 'planejamento', label: 'Lista de Compras', icon: Calculator },
                   { id: 'config', label: 'Configurações', icon: Settings }
                 ].map((item) => (
                   <button key={item.id} onClick={() => { setAbaAtiva(item.id as any); setIsMenuAberto(false); setReceitaEmEdicao(null); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${abaAtiva === item.id ? "bg-[#D4AF37] text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5"}`}>
@@ -217,6 +234,7 @@ export default function ChefPrecision() {
                 {abaAtiva === 'receitas' && !receitaEmEdicao && <ReceitasView receitas={receitas} insumos={insumos} onNovo={() => setAbaAtiva('receitas')} onExcluir={excluirReceita} onVisualizar={setReceitaEmEdicao} onSalvar={salvarReceitaCompleta} />}
                 {abaAtiva === 'receitas' && receitaEmEdicao && <DetalheCalculo receita={receitaEmEdicao} insumos={insumos} config={config} onVoltar={() => setReceitaEmEdicao(null)} />}
                 {abaAtiva === 'insumos' && <InsumosView insumos={insumos} onAdicionar={salvarInsumo} onExcluir={excluirInsumo} />}
+                {abaAtiva === 'planejamento' && <PlanejamentoView receitas={receitas} insumos={insumos} />}
                 {abaAtiva === 'config' && <ConfigView config={config} setConfig={setConfig} user={user} supabase={supabase} />}
              </AnimatePresence>
           </main>
@@ -322,6 +340,10 @@ function ReceitasView({ receitas, insumos, onVisualizar, onSalvar, onExcluir }: 
                                <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Quanto rende? (un/kg/fatias)</label><input type="number" value={novo.rendimento} onChange={e => setNovo({...novo, rendimento: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
                                <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Margem de Lucro (Ex: 3)</label><input type="number" value={novo.margem_desejada} onChange={e => setNovo({...novo, margem_desejada: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                               <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Tempo de Preparo (Min)</label><input type="number" value={novo.tempo_preparo} onChange={e => setNovo({...novo, tempo_preparo: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
+                               <div className="space-y-2"><label className="text-[9px] font-black uppercase text-black/30 pl-2">Tempo de Forno (Min)</label><input type="number" value={novo.tempo_forno} onChange={e => setNovo({...novo, tempo_forno: parseFloat(e.target.value)})} className="w-full bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" /></div>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
@@ -368,14 +390,24 @@ function ReceitasView({ receitas, insumos, onVisualizar, onSalvar, onExcluir }: 
 }
 
 function DetalheCalculo({ receita, insumos, config, onVoltar }: any) {
-    const custoLata = receita.itens.reduce((acc: any, curr: any) => {
+    const custoIngredientes = receita.itens.reduce((acc: any, curr: any) => {
         const ins = insumos.find((i: any) => i.id === curr.id_insumo);
         return acc + (ins ? (ins.price / ins.quantity) * curr.quantidade_usada : 0);
     }, 0);
     
-    const custoEstrutural = custoLata * (config.taxa_fixa / 100);
-    const custoTotal = custoLata + custoEstrutural;
-    const precoSugerido = custoTotal * receita.margem_desejada;
+    // Cálculos de Minutos
+    const tempoTotal = (receita.tempo_preparo || 0) + (receita.tempo_forno || 0);
+    const custoMinutoSalario = (config.salario_desejado / config.horas_trabalhadas_mes) / 60;
+    const totalContas = Object.values(config.contas).reduce((a: any, b: any) => a + b, 0) as number;
+    const custoMinutoOperacional = (totalContas / config.horas_trabalhadas_mes) / 60;
+
+    const custoMaoDeObra = (receita.tempo_preparo || 0) * custoMinutoSalario;
+    const custoOperacional = tempoTotal * custoMinutoOperacional;
+    
+    const custoSubtotal = custoIngredientes + custoMaoDeObra + custoOperacional;
+    const custoComMargemErro = custoSubtotal * (1 + (config.taxa_fixa / 100));
+    
+    const precoSugerido = custoComMargemErro * (receita.margem_desejada || 3);
 
     return (
         <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} className="p-6 max-w-4xl mx-auto pb-40">
@@ -383,25 +415,43 @@ function DetalheCalculo({ receita, insumos, config, onVoltar }: any) {
             <div className="bg-white p-10 rounded-[4rem] shadow-3xl border border-black/5 space-y-12">
                 <header className="text-center">
                     <h2 className="text-4xl font-black italic mb-3">{receita.nome}</h2>
-                    <div className="flex justify-center gap-3"><span className="px-4 py-2 bg-[#F5F5F5] rounded-full text-[9px] font-bold uppercase tracking-widest">Rende {receita.rendimento} uni</span></div>
+                    <div className="flex justify-center gap-3">
+                        <span className="px-4 py-2 bg-[#F5F5F5] rounded-full text-[9px] font-bold uppercase tracking-widest">Rende {receita.rendimento} uni</span>
+                        <span className="px-4 py-2 bg-[#F5F5F5] rounded-full text-[9px] font-bold uppercase tracking-widest">{tempoTotal} min total</span>
+                    </div>
                 </header>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-6 bg-[#F5F5F5] rounded-[2rem] text-center">
+                        <span className="text-[9px] font-black uppercase text-black/30 tracking-widest block mb-1">Ingredientes</span>
+                        <p className="text-xl font-black">R$ {custoIngredientes.toFixed(2)}</p>
+                    </div>
+                    <div className="p-6 bg-[#F5F5F5] rounded-[2rem] text-center">
+                        <span className="text-[9px] font-black uppercase text-black/30 tracking-widest block mb-1">Mão de Obra</span>
+                        <p className="text-xl font-black">R$ {custoMaoDeObra.toFixed(2)}</p>
+                    </div>
+                    <div className="p-6 bg-[#F5F5F5] rounded-[2rem] text-center">
+                        <span className="text-[9px] font-black uppercase text-black/30 tracking-widest block mb-1">Recursos (Luz/Gás)</span>
+                        <p className="text-xl font-black">R$ {custoOperacional.toFixed(2)}</p>
+                    </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-8 bg-[#F5F5F5] rounded-[3rem] text-center">
-                        <span className="text-[10px] font-black uppercase text-black/30 tracking-widest block mb-1">Custo da Receita</span>
-                        <p className="text-3xl font-black">R$ {custoTotal.toFixed(2)}</p>
+                        <span className="text-[10px] font-black uppercase text-black/30 tracking-widest block mb-1">Custo Total da Receita</span>
+                        <p className="text-3xl font-black">R$ {custoComMargemErro.toFixed(2)}</p>
                     </div>
                     <div className="p-8 bg-[#D4AF37] rounded-[3rem] text-center text-white shadow-2xl">
                         <span className="text-[10px] font-black uppercase text-white/50 tracking-widest block mb-1">Custo por Unidade</span>
-                        <p className="text-3xl font-black">R$ {(custoTotal / receita.rendimento).toFixed(2)}</p>
+                        <p className="text-3xl font-black">R$ {(custoComMargemErro / receita.rendimento).toFixed(2)}</p>
                     </div>
                 </div>
 
                 <div className="bg-[#1A1A1A] text-white p-12 rounded-[4rem] flex flex-col items-center gap-6 relative overflow-hidden text-center">
                     <div className="relative z-10">
-                        <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-4 block">Preço de Venda Sugerido</span>
+                        <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-4 block">Preço de Venda Sugerido (Markup {receita.margem_desejada})</span>
                         <h3 className="text-7xl font-black text-white italic">R$ {precoSugerido.toFixed(2)}</h3>
-                        <p className="text-white/20 text-[9px] font-black uppercase tracking-[0.2em] mt-6">Considerando lucro de 100% sobre o custo + {config.taxa_fixa}% de fixos</p>
+                        <p className="text-white/20 text-[9px] font-black uppercase tracking-[0.2em] mt-6">Considerando lucro sobre custos fixos, variáveis e pro-labore</p>
                     </div>
                     <div className="absolute top-[-20%] right-[-10%] opacity-5 rotate-12"><DollarSign size={200}/></div>
                 </div>
@@ -436,13 +486,143 @@ function ConfigView({ config, setConfig, user, supabase }: any) {
     };
 
     return (
-        <div className="p-10 max-w-xl mx-auto py-24 text-center">
-            <h2 className="text-4xl font-black tracking-tighter mb-12 italic">Configurações Master</h2>
-            <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
-                <div className="flex flex-col gap-2 text-left"><label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Mão de Obra (R$/Hora)</label><input type="number" value={config.mao_de_obra} onChange={e => setConfig({...config, mao_de_obra: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" /></div>
-                <div className="flex flex-col gap-2 text-left"><label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Rateio Gás/Luz (%)</label><input type="number" value={config.taxa_fixa} onChange={e => setConfig({...config, taxa_fixa: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" /></div>
-                <button onClick={handleSave} className="w-full py-6 bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3"><Zap size={16} className="text-[#D4AF37]"/> Salvar Preferências</button>
+        <div className="p-10 max-w-2xl mx-auto py-24">
+            <h2 className="text-4xl font-black tracking-tighter mb-12 italic text-center">Configurações Master</h2>
+            
+            <div className="grid gap-8">
+                {/* Seção Financeira */}
+                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
+                    <h3 className="text-xs font-black uppercase text-[#D4AF37] tracking-[0.3em]">Definição de Pro-Labore</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Salário Desejado (R$)</label>
+                            <input type="number" value={config.salario_desejado} onChange={e => setConfig({...config, salario_desejado: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Horas de Trabalho / Mês</label>
+                            <input type="number" value={config.horas_trabalhadas_mes} onChange={e => setConfig({...config, horas_trabalhadas_mes: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
+                        </div>
+                    </div>
+                    <div className="p-6 bg-[#D4AF37]/5 rounded-2xl">
+                        <p className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">Seu valor/hora atual: R$ {(config.salario_desejado / config.horas_trabalhadas_mes || 0).toFixed(2)}</p>
+                    </div>
+                </div>
+
+                {/* Seção de Contas */}
+                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
+                    <h3 className="text-xs font-black uppercase text-[#D4AF37] tracking-[0.3em]">Custos Fixos Mensais</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Energia Elétrica</label>
+                            <input type="number" value={config.contas.luz} onChange={e => setConfig({...config, contas: {...config.contas, luz: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Gás de Cozinha</label>
+                            <input type="number" value={config.contas.gas} onChange={e => setConfig({...config, contas: {...config.contas, gas: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Água</label>
+                            <input type="number" value={config.contas.agua} onChange={e => setConfig({...config, contas: {...config.contas, agua: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Internet/Tel</label>
+                            <input type="number" value={config.contas.internet} onChange={e => setConfig({...config, contas: {...config.contas, internet: parseFloat(e.target.value)}})} className="bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-sm" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-black/5 space-y-8">
+                    <div className="flex flex-col gap-2 text-left">
+                        <label className="text-[9px] font-black text-black/30 uppercase tracking-[0.3em] pl-2">Margem de Erro/Extra (%)</label>
+                        <input type="number" value={config.taxa_fixa} onChange={e => setConfig({...config, taxa_fixa: parseFloat(e.target.value)})} className="bg-[#F5F5F5] p-6 rounded-2xl outline-none font-black text-sm" />
+                    </div>
+                    <button onClick={handleSave} className="w-full py-6 bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3">
+                        <Zap size={16} className="text-[#D4AF37]"/> Salvar Preferências
+                    </button>
+                </div>
             </div>
+        </div>
+    );
+}
+
+function PlanejamentoView({ receitas, insumos }: any) {
+    const [listaProducao, setListaProducao] = useState<{id_receita: string, quantidade: number}[]>([]);
+    const [selectedId, setSelectedId] = useState("");
+    const [selectedQt, setSelectedQt] = useState(1);
+
+    const addNaLista = () => {
+        if(!selectedId) return;
+        setListaProducao([...listaProducao, { id_receita: selectedId, quantidade: selectedQt }]);
+        setSelectedId("");
+        setSelectedQt(1);
+    };
+
+    const consolidado = useMemo(() => {
+        const itens: { [key: string]: { name: string, total: number, unit: string } } = {};
+        
+        listaProducao.forEach(prod => {
+            const rec = receitas.find((r:any) => r.id === prod.id_receita);
+            if (!rec) return;
+            
+            const fator = prod.quantidade / rec.rendimento;
+            
+            rec.itens.forEach((it: any) => {
+                const ins = insumos.find((i: any) => i.id === it.id_insumo);
+                if (!ins) return;
+                
+                if (itens[it.id_insumo]) {
+                    itens[it.id_insumo].total += it.quantidade_usada * fator;
+                } else {
+                    itens[it.id_insumo] = {
+                        name: ins.name,
+                        total: it.quantidade_usada * fator,
+                        unit: ins.unit
+                    };
+                }
+            });
+        });
+        
+        return Object.values(itens);
+    }, [listaProducao, receitas, insumos]);
+
+    return (
+        <div className="p-6 max-w-4xl mx-auto pb-32">
+            <h2 className="text-3xl font-black tracking-tighter mb-8 italic">Planejamento de Produção</h2>
+            
+            <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-black/5 mb-10 space-y-6">
+                <h3 className="text-[10px] font-black uppercase text-[#D4AF37] tracking-[0.4em]">O que você vai produzir?</h3>
+                <div className="flex gap-4">
+                    <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className="flex-1 bg-[#F5F5F5] p-5 rounded-2xl outline-none font-bold text-xs">
+                        <option value="">Selecione uma receita...</option>
+                        {receitas.map((r: any) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                    </select>
+                    <input type="number" placeholder="Qtd" value={selectedQt} onChange={e => setSelectedQt(parseFloat(e.target.value))} className="w-32 bg-[#F5F5F5] p-5 rounded-2xl outline-none font-black text-xs" />
+                    <button onClick={addNaLista} className="h-16 w-16 bg-black text-white rounded-2xl flex items-center justify-center active:scale-90 transition-all"><Plus/></button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    {listaProducao.map((p, idx) => (
+                        <div key={idx} className="bg-[#1A1A1A] text-white px-4 py-2 rounded-full text-[10px] font-black flex items-center gap-3">
+                            {receitas.find((r:any)=>r.id === p.id_receita)?.nome} ({p.quantidade})
+                            <button onClick={() => setListaProducao(listaProducao.filter((_, i) => i !== idx))}><X size={12}/></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {consolidado.length > 0 && (
+                <div className="bg-[#D4AF37] p-10 rounded-[4rem] text-white shadow-3xl">
+                    <h3 className="text-xs font-black uppercase tracking-[0.4em] mb-8 opacity-60">Lista de Compras Consolidada</h3>
+                    <div className="grid gap-4">
+                        {consolidado.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center border-b border-white/20 pb-4">
+                                <span className="font-bold text-lg">{item.name}</span>
+                                <span className="font-black text-xl">{item.total.toLocaleString('pt-BR')} {item.unit}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
