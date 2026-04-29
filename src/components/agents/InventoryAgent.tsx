@@ -5,7 +5,12 @@ import { Plus, Search, Trash2, ArrowLeft, Tag } from "lucide-react";
 
 export function InventoryAgent({ insumos, onAdicionar, onExcluir, onVoltar }: any) {
     const [isAdding, setIsAdding] = useState(false);
+    const [busca, setBusca] = useState('');
     const [form, setForm] = useState({ name: '', price: 0, quantity: 1, unit: 'g' });
+
+    const insumosFiltrados = insumos.filter((i: any) =>
+        i.name.toLowerCase().includes(busca.toLowerCase())
+    );
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-32">
@@ -20,11 +25,11 @@ export function InventoryAgent({ insumos, onAdicionar, onExcluir, onVoltar }: an
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                         <div className="relative mb-6">
                             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" size={18}/>
-                            <input type="text" placeholder="Buscar ingrediente..." className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-[#D4AF37]/50 transition-all font-medium" />
+                            <input type="text" placeholder="Buscar ingrediente..." value={busca} onChange={e => setBusca(e.target.value)} className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-[#D4AF37]/50 transition-all font-medium" />
                         </div>
                         
                         <div className="grid gap-3">
-                            {insumos.map((i: any) => (
+                            {insumosFiltrados.map((i: any) => (
                                 <div key={i.id} className="bg-white/5 p-5 rounded-[2rem] border border-white/5 flex items-center justify-between group">
                                     <div className="flex items-center gap-4">
                                         <div className="h-10 w-10 bg-[#D4AF37]/10 rounded-xl flex items-center justify-center text-[#D4AF37] text-xs font-black uppercase">{i.unit}</div>

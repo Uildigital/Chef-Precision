@@ -30,11 +30,18 @@ export function PricingWizardAgent({ insumos, config, onSalvar, onVoltar }: any)
     const addItem = (id: string) => {
         const itemExistente = form.itens.find((it: any) => it.id_insumo === id);
         if (itemExistente) return;
-        setForm({ ...form, itens: [...form.itens, { id_insumo: id, quantidade_usada: 0 }] });
+        const insumo = insumos.find((i: any) => i.id === id);
+        setForm({ ...form, itens: [...form.itens, { id_insumo: id, quantidade_usada: 0, unit_used: insumo?.unit || 'g' }] });
     };
 
     const next = () => setStep(s => Math.min(s + 1, totalSteps + 1));
     const back = () => setStep(s => Math.max(s - 1, 1));
+
+    const custoIngredientes = MathSkill.calcularCustoIngredientes(form.itens, insumos);
+    const { laborCost, operationalCost } = MathSkill.calcularCustoOperacional(form, config);
+    const custoTotal = custoIngredientes + laborCost + operationalCost;
+    const markup = form.margem_desejada || 3;
+    const precoSugerido = custoTotal * markup;
 
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="pb-32">
@@ -153,14 +160,10 @@ export function PricingWizardAgent({ insumos, config, onSalvar, onVoltar }: any)
                         <div className="bg-[#D4AF37] p-10 rounded-[4rem] text-black shadow-3xl shadow-[#D4AF37]/20 relative overflow-hidden text-center">
                              <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40 mb-4 block">Sugestão de Venda</span>
                              <h3 className="text-7xl font-black italic leading-none mb-6">
-                                {MathSkill.formatarMoeda(
-                                    (MathSkill.calcularCustoIngredientes(form.itens, insumos) + 
-                                    MathSkill.calcularCustoOperacional(form, config).laborCost + 
-                                    MathSkill.calcularCustoOperacional(form, config).operationalCost) * 3
-                                )}
+                                {MathSkill.formatarMoeda(precoSugerido)}
                              </h3>
                              <div className="flex justify-center gap-2">
-                                 <span className="px-5 py-2 bg-black/5 rounded-full text-[9px] font-black uppercase">Custo Unitário: {MathSkill.formatarMoeda((MathSkill.calcularCustoIngredientes(form.itens, insumos) + MathSkill.calcularCustoOperacional(form, config).laborCost + MathSkill.calcularCustoOperacional(form, config).operationalCost) / form.rendimento)}</span>
+                                 <span className="px-5 py-2 bg-black/5 rounded-full text-[9px] font-black uppercase">Custo Unitário: {MathSkill.formatarMoeda(custoTotal / form.rendimento)}</span>
                              </div>
                              <div className="absolute top-[-20%] right-[-10%] opacity-10 rotate-12"><DollarSign size={200} /></div>
                         </div>
@@ -168,21 +171,21 @@ export function PricingWizardAgent({ insumos, config, onSalvar, onVoltar }: any)
                         <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5 space-y-6">
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
                                  <span>Insumos</span>
-                                 <span className="text-white">{MathSkill.formatarMoeda(MathSkill.calcularCustoIngredientes(form.itens, insumos))}</span>
+                                 <span className="text-white">{MathSkill.formatarMoeda(custoIngredientes)}</span>
                              </div>
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
                                  <span>Mão de Obra</span>
-                                 <span className="text-white">{MathSkill.formatarMoeda(MathSkill.calcularCustoOperacional(form, config).laborCost)}</span>
+                                 <span className="text-white">{MathSkill.formatarMoeda(laborCost)}</span>
                              </div>
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
                                  <span>Contas Fixas</span>
-                                 <span className="text-white">{MathSkill.formatarMoeda(MathSkill.calcularCustoOperacional(form, config).operationalCost)}</span>
+                                 <span className="text-white">{MathSkill.formatarMoeda(operationalCost)}</span>
                              </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <button onClick={() => setStep(1)} className="py-6 bg-white/5 text-white/40 rounded-[2rem] font-black text-xs uppercase tracking-widest">Recalcular</button>
-                            <button onClick={() => { onSalvar(form); onVoltar(); }} className="py-6 bg-white text-black rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"><Heart size={14} fill="currentColor"/> Salvar Ficha</button>
+                            <button onClick={() => { onSalvar({ ...form, preco_sugerido: precoSugerido, custo_total: custoTotal }); onVoltar(); }} className="py-6 bg-white text-black rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"><Heart size={14} fill="currentColor"/> Salvar Ficha</button>
                         </div>
                     </motion.div>
                 )}

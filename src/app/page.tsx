@@ -25,7 +25,7 @@ import { MathSkill } from "@/lib/logic/MathSkill";
 
 // Interfaces
 export interface Insumo { id: string; name: string; price: number; quantity: number; unit: string; yield_percentage: number; }
-export interface Receita { id: string; nome: string; itens: any[]; rendimento: number; margem_desejada: number; tempo_preparo: number; tempo_forno: number; }
+export interface Receita { id: string; nome: string; itens: any[]; rendimento: number; margem_desejada: number; tempo_preparo: number; tempo_forno: number; preco_sugerido?: number; custo_total?: number; }
 
 export default function ChefPrecisionV3() {
   const [view, setView] = useState<'dashboard' | 'wizard' | 'inventory' | 'production' | 'settings'>('dashboard');
@@ -63,8 +63,32 @@ export default function ChefPrecisionV3() {
   const carregarDados = async (userId: string) => {
     const { data: dIns } = await supabase.from('ingredients').select('*').eq('user_id', userId);
     if (dIns) setInsumos(dIns);
+
+    const { data: dRec } = await supabase
+      .from('recipes')
+      .select('*, recipe_ingredients(*)')
+      .eq('user_id', userId);
+    if (dRec && dRec.length > 0) {
+      setReceitas(dRec.map(r => ({
+        id: r.id,
+        nome: r.name,
+        rendimento: r.yield_quantity,
+        tempo_preparo: r.prep_time_minutes,
+        tempo_forno: r.oven_time_minutes,
+        margem_desejada: r.markup_percentage,
+        itens: (r.recipe_ingredients || []).map((ri: any) => ({
+          id_insumo: ri.ingredient_id,
+          quantidade_usada: ri.quantity_used,
+          unit_used: ri.unit_used
+        }))
+      })));
+    } else {
+      const localRec = localStorage.getItem("chef-receitas");
+      if (localRec) setReceitas(JSON.parse(localRec));
+    }
+
     const { data: dConf } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
-    if (dConf) setConfig({ ...config, ...dConf });
+    if (dConf) setConfig((prev: any) => ({ ...prev, ...dConf }));
   };
 
   const salvarInsumo = async (novo: any) => {
@@ -75,11 +99,44 @@ export default function ChefPrecisionV3() {
     if (user) await supabase.from('ingredients').insert([{ ...novo, user_id: user.id }]);
   };
 
+  const excluirInsumo = async (id: string) => {
+    const lista = insumos.filter(i => i.id !== id);
+    setInsumos(lista);
+    localStorage.setItem("chef-insumos", JSON.stringify(lista));
+    if (user) await supabase.from('ingredients').delete().eq('id', id);
+  };
+
   const salvarReceita = async (nova: any) => {
     const item = { ...nova, id: Date.now().toString() };
     const lista = [...receitas, item];
     setReceitas(lista);
     localStorage.setItem("chef-receitas", JSON.stringify(lista));
+    if (user) {
+      try {
+        const { data: recData } = await supabase
+          .from('recipes')
+          .insert([{
+            name: nova.nome,
+            yield_quantity: nova.rendimento,
+            prep_time_minutes: nova.tempo_preparo,
+            oven_time_minutes: nova.tempo_forno,
+            markup_percentage: nova.margem_desejada,
+            user_id: user.id
+          }])
+          .select('id')
+          .single();
+        if (recData?.id && nova.itens?.length) {
+          await supabase.from('recipe_ingredients').insert(
+            nova.itens.map((it: any) => ({
+              recipe_id: recData.id,
+              ingredient_id: it.id_insumo,
+              quantity_used: it.quantidade_usada,
+              unit_used: it.unit_used || 'g'
+            }))
+          );
+        }
+      } catch (e) {}
+    }
   };
 
   return (
@@ -111,10 +168,9 @@ export default function ChefPrecisionV3() {
                             <div className="relative z-10">
                                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 block mb-4">Saldo do Ateliê</span>
                                 <div className="flex items-baseline gap-2 mb-2">
-                                    <h2 className="text-5xl font-black tracking-tighter italic">R$ {receitas.length * 125 || "0"}</h2>
-                                    <span className="text-xs font-bold text-[#D4AF37]">+5.2%</span>
+                                    <h2 className="text-5xl font-black tracking-tighter italic">{MathSkill.formatarMoeda(receitas.reduce((s, r) => s + ((r.preco_sugerido ?? 0) - (r.custo_total ?? 0)), 0))}</h2>
                                 </div>
-                                <p className="text-white/40 text-[10px] font-medium leading-relaxed max-w-[200px]">Estimativa de lucro mensal com base em suas receitas.</p>
+                                <p className="text-white/40 text-[10px] font-medium leading-relaxed max-w-[200px]">Lucro potencial por produção das suas receitas.</p>
                             </div>
                             <TrendingUp className="absolute right-[-10%] bottom-[-10%] text-white/5 w-40 h-40 -rotate-12" />
                         </div>
@@ -157,7 +213,7 @@ export default function ChefPrecisionV3() {
                                             <div className="h-10 w-10 bg-white/5 rounded-2xl flex items-center justify-center text-white/20 font-black text-[10px]">{r.nome.charAt(0)}</div>
                                             <p className="font-bold text-sm tracking-tight">{r.nome}</p>
                                         </div>
-                                        <p className="text-xs font-black text-[#D4AF37]">R$ 4.50</p>
+                                        <p className="text-xs font-black text-[#D4AF37]">{r.preco_sugerido ? MathSkill.formatarMoeda(r.preco_sugerido / r.rendimento) : '—'}</p>
                                     </div>
                                 ))}
                                 {receitas.length === 0 && <p className="text-center text-white/10 text-[10px] font-black uppercase tracking-widest py-10 opacity-50 border-2 border-dashed border-white/5 rounded-[2rem]">Nenhuma receita calculada ainda</p>}
@@ -167,7 +223,7 @@ export default function ChefPrecisionV3() {
                 )}
 
                 {view === 'wizard' && <PricingWizardAgent insumos={insumos} config={config} onSalvar={salvarReceita} onVoltar={() => setView('dashboard')} />}
-                {view === 'inventory' && <InventoryAgent insumos={insumos} onAdicionar={salvarInsumo} onExcluir={()=>{}} onVoltar={() => setView('dashboard')} />}
+                {view === 'inventory' && <InventoryAgent insumos={insumos} onAdicionar={salvarInsumo} onExcluir={excluirInsumo} onVoltar={() => setView('dashboard')} />}
                 {view === 'production' && <ProductionAgent receitas={receitas} insumos={insumos} onVoltar={() => setView('dashboard')} />}
                 {view === 'settings' && <FinanceAgent config={config} setConfig={setConfig} user={user} supabase={supabase} onVoltar={() => setView('dashboard')} />}
             </AnimatePresence>
