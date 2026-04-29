@@ -1,15 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { 
-  LayoutDashboard, 
-  PlusCircle, 
-  ShoppingBag, 
-  Settings, 
-  ChevronRight, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  PlusCircle,
+  ShoppingBag,
+  Settings,
+  ChevronRight,
+  TrendingUp,
   Package,
-  ArrowRight,
-  Menu,
+  ChefHat,
   User as UserIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -148,10 +147,15 @@ export default function ChefPrecisionV3() {
 
       <div className="relative z-10 max-w-lg mx-auto min-h-screen flex flex-col">
         {view === 'dashboard' && (
-            <header className="p-8 pb-4 flex items-center justify-between">
-                <div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#D4AF37] mb-1">Elite Management</p>
-                    <h1 className="text-2xl font-black tracking-tighter italic">Meu Ateliê</h1>
+            <header className="px-8 pt-10 pb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/20">
+                        <ChefHat size={20} className="text-black" />
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-black tracking-tight leading-none">Receita de Lucro</h1>
+                        <p className="text-[10px] text-white/30 font-medium mt-0.5">Precifique. Lucre. Cresça.</p>
+                    </div>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
                     <UserIcon size={16} className="text-white/20" />
@@ -162,63 +166,122 @@ export default function ChefPrecisionV3() {
         <main className="flex-1 px-6 pt-4 pb-32">
             <AnimatePresence mode="wait">
                 {view === 'dashboard' && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-10">
-                        {/* Dashboard Stats */}
-                        <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] p-8 rounded-[3rem] border border-white/10 shadow-2xl relative overflow-hidden group">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+
+                        {/* Card de lucro */}
+                        <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] p-8 rounded-[3rem] border border-white/10 shadow-2xl relative overflow-hidden">
                             <div className="relative z-10">
-                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 block mb-4">Saldo do Ateliê</span>
-                                <div className="flex items-baseline gap-2 mb-2">
-                                    <h2 className="text-5xl font-black tracking-tighter italic">{MathSkill.formatarMoeda(receitas.reduce((s, r) => s + ((r.preco_sugerido ?? 0) - (r.custo_total ?? 0)), 0))}</h2>
-                                </div>
-                                <p className="text-white/40 text-[10px] font-medium leading-relaxed max-w-[200px]">Lucro potencial por produção das suas receitas.</p>
+                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 block mb-3">Lucro Potencial</span>
+                                {receitas.length > 0 ? (
+                                    <>
+                                        <h2 className="text-5xl font-black tracking-tighter italic mb-2">
+                                            {MathSkill.formatarMoeda(receitas.reduce((s, r) => s + ((r.preco_sugerido ?? 0) - (r.custo_total ?? 0)), 0))}
+                                        </h2>
+                                        <p className="text-white/30 text-[10px] font-medium">
+                                            {receitas.length} receita{receitas.length !== 1 ? 's' : ''} precificada{receitas.length !== 1 ? 's' : ''}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h2 className="text-5xl font-black tracking-tighter italic mb-2 text-white/15">R$ —</h2>
+                                        <p className="text-white/30 text-[10px] font-medium">Calcule sua primeira receita para ver seu lucro</p>
+                                    </>
+                                )}
                             </div>
                             <TrendingUp className="absolute right-[-10%] bottom-[-10%] text-white/5 w-40 h-40 -rotate-12" />
                         </div>
 
-                        {/* Intention Grid */}
-                        <div className="grid gap-4">
-                            <button onClick={() => setView('wizard')} className="w-full bg-[#D4AF37] p-6 rounded-[2.5rem] flex items-center justify-between group active:scale-95 transition-all shadow-xl shadow-[#D4AF37]/10">
-                                <div className="flex items-center gap-5 text-black">
-                                    <div className="h-14 w-14 bg-black rounded-2xl flex items-center justify-center text-[#D4AF37]"><PlusCircle size={28}/></div>
-                                    <div className="text-left">
-                                        <p className="text-sm font-black uppercase tracking-[0.1em]">Precificar Algo</p>
-                                        <p className="text-[10px] opacity-60 font-black italic">Novo cálculo guiado</p>
-                                    </div>
+                        {/* Ação principal */}
+                        <button onClick={() => setView('wizard')} className="w-full bg-[#D4AF37] p-6 rounded-[2.5rem] flex items-center justify-between active:scale-95 transition-all shadow-xl shadow-[#D4AF37]/10">
+                            <div className="flex items-center gap-5 text-black">
+                                <div className="h-14 w-14 bg-black rounded-2xl flex items-center justify-center text-[#D4AF37]">
+                                    <PlusCircle size={28} />
                                 </div>
-                                <ArrowRight className="text-black" />
-                            </button>
-
-                            <button onClick={() => setView('inventory')} className="w-full bg-white/5 p-6 rounded-[2.5rem] border border-white/10 flex items-center justify-between group active:scale-95 transition-all">
-                                <div className="flex items-center gap-5">
-                                    <div className="h-14 w-14 bg-white/5 rounded-2xl flex items-center justify-center text-white/40 group-hover:text-[#D4AF37] transition-colors"><Package size={24}/></div>
-                                    <div className="text-left">
-                                        <p className="text-sm font-black uppercase tracking-[0.1em]">Gerenciar Insumos</p>
-                                        <p className="text-[10px] text-white/40 font-black italic">Atualizar preços e estoque</p>
-                                    </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-black uppercase tracking-[0.1em]">Calcular Nova Receita</p>
+                                    <p className="text-[10px] opacity-60 font-medium">Descubra o preço justo de venda</p>
                                 </div>
-                                <ChevronRight className="text-white/20" />
-                            </button>
-                        </div>
+                            </div>
+                            <ChevronRight className="text-black" />
+                        </button>
 
-                        {/* Recent Recipes */}
-                        <div className="space-y-6">
-                             <div className="flex items-center justify-between px-2">
-                                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Suas Fichas</h3>
-                                <button className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest">Ver Todas</button>
-                             </div>
-                             <div className="grid gap-4">
-                                {receitas.map(r => (
-                                    <div key={r.id} className="bg-white/5 p-5 rounded-[2rem] flex items-center justify-between border border-transparent hover:border-white/10 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-10 w-10 bg-white/5 rounded-2xl flex items-center justify-center text-white/20 font-black text-[10px]">{r.nome.charAt(0)}</div>
-                                            <p className="font-bold text-sm tracking-tight">{r.nome}</p>
+                        {/* Onboarding (sem receitas) ou lista de receitas */}
+                        {receitas.length === 0 ? (
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 px-1 pb-1">Como funciona</p>
+                                {[
+                                    {
+                                        num: '1',
+                                        title: 'Cadastre seus ingredientes',
+                                        desc: 'Farinha, ovos, chocolate — com preço e quantidade',
+                                        done: insumos.length > 0,
+                                        action: () => setView('inventory'),
+                                    },
+                                    {
+                                        num: '2',
+                                        title: 'Calcule o preço de uma receita',
+                                        desc: 'Somamos ingredientes, mão de obra e custos fixos',
+                                        done: false,
+                                        action: () => setView('wizard'),
+                                    },
+                                    {
+                                        num: '3',
+                                        title: 'Venda com confiança',
+                                        desc: 'Saiba exatamente quanto cobrar em cada venda',
+                                        done: false,
+                                        action: null,
+                                    },
+                                ].map(step => (
+                                    <button
+                                        key={step.num}
+                                        onClick={step.action ?? undefined}
+                                        disabled={!step.action}
+                                        className={`w-full p-5 rounded-[2rem] border flex items-center gap-4 text-left transition-all ${step.action ? 'active:scale-[0.98]' : 'cursor-default'} ${step.done ? 'bg-[#D4AF37]/5 border-[#D4AF37]/25' : 'bg-white/3 border-white/8'}`}
+                                    >
+                                        <div className={`h-10 w-10 rounded-2xl flex items-center justify-center font-black text-sm flex-shrink-0 ${step.done ? 'bg-[#D4AF37] text-black' : 'bg-white/5 text-white/20'}`}>
+                                            {step.done ? '✓' : step.num}
                                         </div>
-                                        <p className="text-xs font-black text-[#D4AF37]">{r.preco_sugerido ? MathSkill.formatarMoeda(r.preco_sugerido / r.rendimento) : '—'}</p>
-                                    </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`font-black text-sm tracking-tight ${step.done ? 'line-through opacity-40' : ''}`}>{step.title}</p>
+                                            <p className="text-[10px] text-white/30 mt-0.5 font-medium">{step.desc}</p>
+                                        </div>
+                                        {step.action && <ChevronRight size={16} className="text-white/20 flex-shrink-0" />}
+                                    </button>
                                 ))}
-                                {receitas.length === 0 && <p className="text-center text-white/10 text-[10px] font-black uppercase tracking-widest py-10 opacity-50 border-2 border-dashed border-white/5 rounded-[2rem]">Nenhuma receita calculada ainda</p>}
-                             </div>
-                        </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-1">
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Minhas Receitas</h3>
+                                    <button onClick={() => setView('inventory')} className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest">Ver Estoque</button>
+                                </div>
+                                <div className="grid gap-3">
+                                    {receitas.map(r => (
+                                        <div key={r.id} className="bg-white/5 p-5 rounded-[2rem] border border-transparent hover:border-white/10 transition-all">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-11 w-11 bg-[#D4AF37]/10 rounded-2xl flex items-center justify-center text-[#D4AF37] font-black text-base">
+                                                        {r.nome.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-sm tracking-tight">{r.nome}</p>
+                                                        <p className="text-[10px] text-white/30 mt-0.5">
+                                                            {r.rendimento} un · custo {r.custo_total ? MathSkill.formatarMoeda(r.custo_total / r.rendimento) : '—'}/un
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-black text-[#D4AF37]">
+                                                        {r.preco_sugerido ? MathSkill.formatarMoeda(r.preco_sugerido / r.rendimento) : '—'}
+                                                    </p>
+                                                    <p className="text-[9px] text-white/20 mt-0.5">venda/un</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
 
@@ -229,16 +292,17 @@ export default function ChefPrecisionV3() {
             </AnimatePresence>
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-2xl border-t border-white/5 px-10 py-8 flex justify-between items-center z-[100] rounded-t-[3rem]">
+        <nav className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-2xl border-t border-white/5 px-6 pt-4 pb-8 flex justify-around items-center z-[100] rounded-t-[2.5rem]">
             {[
-                { id: 'dashboard', icon: LayoutDashboard },
-                { id: 'inventory', icon: Package },
-                { id: 'production', icon: ShoppingBag },
-                { id: 'settings', icon: Settings }
+                { id: 'dashboard', icon: LayoutDashboard, label: 'Início' },
+                { id: 'inventory', icon: Package,         label: 'Estoque' },
+                { id: 'production', icon: ShoppingBag,   label: 'Produção' },
+                { id: 'settings', icon: Settings,        label: 'Finanças' },
             ].map(item => (
-                <button key={item.id} onClick={() => setView(item.id as any)} className={`transition-all ${view === item.id ? "text-[#D4AF37] scale-125" : "text-white/20 hover:text-white/40"}`}>
-                    <item.icon size={24} />
-                    {view === item.id && <motion.div layoutId="navDot" className="h-1 w-1 bg-[#D4AF37] rounded-full mx-auto mt-2" />}
+                <button key={item.id} onClick={() => setView(item.id as any)} className={`flex flex-col items-center gap-1.5 px-3 transition-all ${view === item.id ? 'text-[#D4AF37]' : 'text-white/20 hover:text-white/40'}`}>
+                    <item.icon size={22} />
+                    <span className="text-[9px] font-black uppercase tracking-wider leading-none">{item.label}</span>
+                    {view === item.id && <motion.div layoutId="navDot" className="h-0.5 w-4 bg-[#D4AF37] rounded-full" />}
                 </button>
             ))}
         </nav>
