@@ -14,6 +14,7 @@ interface Insumo {
   preco_embalagem: number;
   tamanho_embalagem: number;
   unidade_medida?: string;
+  categoria?: string;
 }
 
 interface ItemUsado {
@@ -63,7 +64,7 @@ export default function AppCalculadora() {
     margem_perda: 10
   });
 
-  const [tempInsumo, setTempInsumo] = useState({ nome: "", preco: "", tamanho: "", unidade_medida: "g" });
+  const [tempInsumo, setTempInsumo] = useState({ nome: "", preco: "", tamanho: "", unidade_medida: "g", categoria: "ingrediente" });
   const [tempQuantidadeUsada, setTempQuantidadeUsada] = useState("");
   const [selectedInsumoId, setSelectedInsumoId] = useState("");
   
@@ -72,6 +73,7 @@ export default function AppCalculadora() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [showInsumoForm, setShowInsumoForm] = useState(false);
+  const [showEmbalagemForm, setShowEmbalagemForm] = useState(false);
 
   // Estado de Edição de Insumo (Despensa)
   const [editInsumo, setEditInsumo] = useState<Insumo | null>(null);
@@ -124,7 +126,8 @@ export default function AppCalculadora() {
       nome: tempInsumo.nome,
       preco_embalagem: parseFloat(tempInsumo.preco),
       tamanho_embalagem: parseFloat(tempInsumo.tamanho),
-      unidade_medida: tempInsumo.unidade_medida || "g"
+      unidade_medida: tempInsumo.unidade_medida || "g",
+      categoria: tempInsumo.categoria || "ingrediente"
     };
     
     const { data, error } = await supabase.from('insumos').insert([novo]).select().single();
@@ -137,9 +140,13 @@ export default function AppCalculadora() {
     }
 
     setInsumos(prev => [data, ...prev]);
-    setTempInsumo({ nome: "", preco: "", tamanho: "", unidade_medida: "g" });
+    setTempInsumo({ nome: "", preco: "", tamanho: "", unidade_medida: "g", categoria: "ingrediente" });
     setShowInsumoForm(false);
-    if(data) setSelectedInsumoId(data.id);
+    setShowEmbalagemForm(false);
+    if(data) {
+       if (data.categoria === 'embalagem') setSelectedEmbalagemId(data.id);
+       else setSelectedInsumoId(data.id);
+    }
     return data as Insumo;
   };
 
@@ -153,7 +160,8 @@ export default function AppCalculadora() {
         nome: editInsumo.nome,
         preco_embalagem: Number(editInsumo.preco_embalagem),
         tamanho_embalagem: Number(editInsumo.tamanho_embalagem),
-        unidade_medida: editInsumo.unidade_medida
+        unidade_medida: editInsumo.unidade_medida,
+        categoria: editInsumo.categoria || 'ingrediente'
       })
       .eq('id', editInsumo.id)
       .select().single();
@@ -423,6 +431,13 @@ export default function AppCalculadora() {
                       <option value="un">un</option>
                     </select>
                   </div>
+                  <div className="w-28">
+                    <label className="text-xs text-neutral-400 block mb-1">Tipo</label>
+                    <select value={editInsumo.categoria || 'ingrediente'} onChange={e => setEditInsumo({...editInsumo, categoria: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500">
+                      <option value="ingrediente">Comida</option>
+                      <option value="embalagem">Embalagem</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -545,7 +560,9 @@ export default function AppCalculadora() {
                     <div className="space-y-3 overflow-y-auto pr-2">
                       {insumos.map(i => (
                         <div key={i.id} onClick={() => setEditInsumo(i)} className="group cursor-pointer flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 hover:border-orange-500/30 hover:bg-white/5 transition-all">
-                          <span className="text-sm font-medium text-neutral-300 group-hover:text-orange-400 transition-colors">{i.nome}</span>
+                          <span className="text-sm font-medium text-neutral-300 group-hover:text-orange-400 transition-colors">
+                            {i.nome} <span className="text-[10px] text-neutral-500 bg-white/5 px-1 ml-1 rounded">{i.categoria === 'embalagem' ? '📦' : '🥣'}</span>
+                          </span>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-neutral-500 bg-white/5 px-2 py-1 rounded group-hover:bg-orange-500/10 group-hover:text-orange-400 transition-colors">
                               R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'}
@@ -622,7 +639,7 @@ export default function AppCalculadora() {
                     <div className="flex-1 relative">
                       <select value={selectedInsumoId} onChange={(e) => setSelectedInsumoId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-neutral-300 outline-none focus:border-amber-500 appearance-none">
                         <option value="" disabled>Selecione um ingrediente da despensa...</option>
-                        {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'})</option>)}
+                        {insumos.filter(i => i.categoria !== 'embalagem').map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'})</option>)}
                       </select>
                     </div>
                     
@@ -678,16 +695,37 @@ export default function AppCalculadora() {
                 <section className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xs font-bold uppercase tracking-wider text-pink-400 flex items-center gap-2"><Package size={16}/> Embalagens</h2>
-                    <button onClick={() => setShowInsumoForm(!showInsumoForm)} className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1">
+                    <button onClick={() => {
+                      setTempInsumo({ nome: "", preco: "", tamanho: "", unidade_medida: "un", categoria: "embalagem" });
+                      setShowEmbalagemForm(!showEmbalagemForm);
+                    }} className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1">
                       <Plus size={14}/> Cadastrar Embalagem
                     </button>
                   </div>
+
+                  {/* Formulário Rápido de Embalagem */}
+                  <AnimatePresence>
+                    {showEmbalagemForm && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-6">
+                        <div className="bg-pink-500/10 border border-pink-500/20 p-4 rounded-2xl flex flex-col md:flex-row gap-3">
+                          <input type="text" placeholder="Nome (Ex: Caixa Kraft)" value={tempInsumo.nome} onChange={e => setTempInsumo({...tempInsumo, nome: e.target.value})} className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-pink-500" />
+                          <div className="flex gap-3">
+                            <input type="number" placeholder="Preço Pago (R$)" value={tempInsumo.preco} onChange={e => setTempInsumo({...tempInsumo, preco: e.target.value})} className="w-28 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-pink-500" />
+                            <input type="number" placeholder="Qtd. Pacote" value={tempInsumo.tamanho} onChange={e => setTempInsumo({...tempInsumo, tamanho: e.target.value})} className="w-28 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-pink-500" />
+                            <button onClick={salvarNovoInsumo} disabled={isSaving} className="bg-pink-500 text-black font-bold px-4 rounded-xl hover:bg-pink-400 transition-colors whitespace-nowrap disabled:opacity-50">
+                              Salvar
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <div className="flex flex-col md:flex-row gap-3 mb-6">
                     <div className="flex-1 relative">
                       <select value={selectedEmbalagemId} onChange={(e) => setSelectedEmbalagemId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-neutral-300 outline-none focus:border-pink-500 appearance-none">
                         <option value="" disabled>Selecione uma embalagem da despensa...</option>
-                        {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'un'})</option>)}
+                        {insumos.filter(i => i.categoria === 'embalagem').map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'un'})</option>)}
                       </select>
                     </div>
                     
