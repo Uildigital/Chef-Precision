@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings, Scale
+  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings, Scale, Edit2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
@@ -62,6 +62,10 @@ export default function AppCalculadora() {
   const [selectedInsumoId, setSelectedInsumoId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [showInsumoForm, setShowInsumoForm] = useState(false);
+
+  // Estado de Edição de Insumo (Despensa)
+  const [editInsumo, setEditInsumo] = useState<Insumo | null>(null);
+  const [isUpdatingInsumo, setIsUpdatingInsumo] = useState(false);
 
   // Estados do Conversor
   const [showConverter, setShowConverter] = useState(false);
@@ -129,6 +133,31 @@ export default function AppCalculadora() {
     return data as Insumo;
   };
 
+  const atualizarInsumo = async () => {
+    if (!editInsumo || !editInsumo.nome) return;
+    setIsUpdatingInsumo(true);
+    
+    const { data, error } = await supabase
+      .from('insumos')
+      .update({
+        nome: editInsumo.nome,
+        preco_embalagem: Number(editInsumo.preco_embalagem),
+        tamanho_embalagem: Number(editInsumo.tamanho_embalagem),
+        unidade_medida: editInsumo.unidade_medida
+      })
+      .eq('id', editInsumo.id)
+      .select().single();
+      
+    setIsUpdatingInsumo(false);
+    
+    if (error) {
+      alert("Erro ao atualizar ingrediente: " + error.message);
+    } else if (data) {
+      setInsumos(prev => prev.map(i => i.id === data.id ? data : i));
+      setEditInsumo(null);
+    }
+  };
+
   const calcularResultados = () => {
     const custoIngredientes = (novaReceita.itens || []).reduce((total, item) => {
       const insumoInfo = insumos.find(i => i.id === item.insumoId);
@@ -190,7 +219,7 @@ export default function AppCalculadora() {
 
     if (error) {
       console.error("Erro Supabase Receitas:", error);
-      alert("Erro ao salvar a ficha técnica. Verifique a conexão com o banco de dados.");
+      alert("Erro do banco de dados: " + (error.message || JSON.stringify(error)) + "\n\nSe o erro for sobre política de segurança (RLS), lembre-se de desativar o RLS da tabela 'receitas' no painel do Supabase.");
     } else if (data) {
       if (novaReceita.id) {
         setReceitasSalvas(prev => prev.map(r => r.id === data.id ? data : r));
@@ -310,6 +339,50 @@ export default function AppCalculadora() {
         )}
       </AnimatePresence>
 
+      {/* MODAL EDITAR INSUMO */}
+      <AnimatePresence>
+        {editInsumo && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Edit2 className="text-orange-500"/> Editar Ingrediente</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Nome do Ingrediente</label>
+                  <input type="text" value={editInsumo.nome} onChange={e => setEditInsumo({...editInsumo, nome: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500" />
+                </div>
+                
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-neutral-400 block mb-1">Preço Pago (R$)</label>
+                    <input type="number" step="0.01" value={editInsumo.preco_embalagem} onChange={e => setEditInsumo({...editInsumo, preco_embalagem: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500" />
+                  </div>
+                  <div className="w-24">
+                    <label className="text-xs text-neutral-400 block mb-1">Tamanho</label>
+                    <input type="number" value={editInsumo.tamanho_embalagem} onChange={e => setEditInsumo({...editInsumo, tamanho_embalagem: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500" />
+                  </div>
+                  <div className="w-20">
+                    <label className="text-xs text-neutral-400 block mb-1">Medida</label>
+                    <select value={editInsumo.unidade_medida || 'g'} onChange={e => setEditInsumo({...editInsumo, unidade_medida: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500">
+                      <option value="g">g</option>
+                      <option value="ml">ml</option>
+                      <option value="un">un</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button onClick={() => setEditInsumo(null)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors font-medium">Cancelar</button>
+                <button onClick={atualizarInsumo} disabled={isUpdatingInsumo} className="flex-1 bg-orange-500 hover:bg-orange-400 text-black py-3 rounded-xl transition-colors font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+                  {isUpdatingInsumo ? 'Salvando...' : 'Salvar Preço'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* MODAL DE CONFIGURAÇÕES */}
       <AnimatePresence>
         {showConfig && (
@@ -326,11 +399,23 @@ export default function AppCalculadora() {
                   <label className="text-xs text-neutral-400 block mb-1">Horas Trabalhadas (por mês)</label>
                   <input type="number" value={config.horasMensais} onChange={e => setConfig({...config, horasMensais: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
                 </div>
-                <div>
-                  <label className="text-xs text-neutral-400 block mb-1">Custo do Gás/Energia (R$ por minuto)</label>
-                  <input type="number" step="0.01" value={config.custoFixoPorMinutoForno} onChange={e => setConfig({...config, custoFixoPorMinutoForno: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
-                  <p className="text-[10px] text-neutral-500 mt-1 leading-relaxed">
-                    Dica: Se um botijão de R$120 dura em média 30h (1800 minutos) de forno ligado direto, seu custo é R$120 / 1800 = R$ 0,07 por minuto.
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                  <label className="text-xs text-neutral-400 block mb-3 font-bold text-amber-500">Cálculo Automático do Gás</label>
+                  
+                  <div className="flex gap-3 mb-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-neutral-500 block mb-1">Preço do Botijão cheio (R$)</label>
+                      <input type="number" placeholder="Ex: 120" onChange={e => {
+                        const preco = parseFloat(e.target.value) || 0;
+                        if (preco > 0) setConfig({...config, custoFixoPorMinutoForno: Number((preco / 1800).toFixed(4))});
+                      }} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-amber-500" />
+                    </div>
+                  </div>
+                  
+                  <label className="text-xs text-neutral-400 block mb-1">Custo final (R$ por minuto)</label>
+                  <input type="number" step="0.001" value={config.custoFixoPorMinutoForno} onChange={e => setConfig({...config, custoFixoPorMinutoForno: parseFloat(e.target.value) || 0})} className="w-full bg-black border border-white/10 rounded-lg p-2 text-white outline-none focus:border-amber-500 font-mono" />
+                  <p className="text-[10px] text-neutral-500 mt-2 leading-relaxed">
+                    * O sistema calcula automaticamente dividindo o valor do botijão por 1.800 minutos (média de duração de 30 horas de forno ligado).
                   </p>
                 </div>
               </div>
@@ -391,20 +476,23 @@ export default function AppCalculadora() {
                 </div>
 
                 {/* Lista de Insumos */}
-                <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
+                <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm flex flex-col max-h-[500px]">
                   <h3 className="font-bold mb-6 flex items-center gap-2 text-neutral-200">
                     <Package size={20} className="text-orange-500"/> Despensa
                   </h3>
                   {insumos.length === 0 ? (
                     <p className="text-sm text-neutral-500 text-center py-8">Sua despensa está vazia.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {insumos.slice(0, 5).map(i => (
-                        <div key={i.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
-                          <span className="text-sm font-medium text-neutral-300">{i.nome}</span>
-                          <span className="text-xs font-bold text-neutral-500 bg-white/5 px-2 py-1 rounded">
-                            R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'}
-                          </span>
+                    <div className="space-y-3 overflow-y-auto pr-2">
+                      {insumos.map(i => (
+                        <div key={i.id} onClick={() => setEditInsumo(i)} className="group cursor-pointer flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 hover:border-orange-500/30 hover:bg-white/5 transition-all">
+                          <span className="text-sm font-medium text-neutral-300 group-hover:text-orange-400 transition-colors">{i.nome}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-neutral-500 bg-white/5 px-2 py-1 rounded group-hover:bg-orange-500/10 group-hover:text-orange-400 transition-colors">
+                              R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'}
+                            </span>
+                            <Edit2 size={14} className="text-neutral-600 group-hover:text-orange-400 opacity-0 group-hover:opacity-100 transition-all"/>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -527,7 +615,12 @@ export default function AppCalculadora() {
 
                 {/* Tempo e Custos Operacionais */}
                 <section className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-6 flex items-center gap-2"><Clock size={16}/> Custos Operacionais</h2>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-2"><Clock size={16}/> Custos Operacionais</h2>
+                    <button onClick={() => setShowConfig(true)} className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1">
+                      <Settings size={14}/> Editar Valor do Gás e Salário
+                    </button>
+                  </div>
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="text-xs text-neutral-400 mb-2 block font-medium flex items-center gap-1">
