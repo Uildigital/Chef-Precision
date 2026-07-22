@@ -250,6 +250,18 @@ export default function AppCalculadora() {
     setView('builder');
   };
 
+  const excluirReceita = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Tem certeza que deseja excluir esta ficha técnica? Essa ação não pode ser desfeita.")) return;
+    
+    const { error } = await supabase.from('receitas').delete().eq('id', id);
+    if (error) {
+      alert("Erro ao excluir ficha técnica: " + error.message);
+    } else {
+      setReceitasSalvas(prev => prev.filter(r => r.id !== id));
+    }
+  };
+
   const editarFichaTecnica = (receita: Receita) => {
     setNovaReceita(receita);
     setView('builder');
@@ -463,11 +475,16 @@ export default function AppCalculadora() {
                             <p className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">{r.nome}</p>
                             <p className="text-xs text-neutral-400 mt-1">Lote R$ {r.preco_sugerido?.toFixed(2)}</p>
                           </div>
-                          <div className="z-10 text-right">
-                            <p className="text-xs text-green-400 font-bold bg-green-400/10 px-2 py-1 rounded-md inline-block border border-green-400/20 mb-1 block w-fit ml-auto">
-                              + R$ {r.lucro_liquido?.toFixed(2)}
-                            </p>
-                            <span className="text-[10px] text-neutral-500 group-hover:text-amber-500 transition-colors block">Clique para editar</span>
+                          <div className="z-10 flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-xs text-green-400 font-bold bg-green-400/10 px-2 py-1 rounded-md inline-block border border-green-400/20 mb-1 block w-fit ml-auto">
+                                + R$ {r.lucro_liquido?.toFixed(2)}
+                              </p>
+                              <span className="text-[10px] text-neutral-500 group-hover:text-amber-500 transition-colors block">Clique para editar</span>
+                            </div>
+                            <button onClick={(e) => excluirReceita(r.id, e)} className="p-2 text-neutral-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Excluir ficha">
+                              <Trash2 size={18} />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -518,8 +535,10 @@ export default function AppCalculadora() {
                       <input type="text" placeholder="Ex: Cento de Brigadeiro Gourmet" value={novaReceita.nome || ""} onChange={e => setNovaReceita({...novaReceita, nome: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-amber-500 outline-none transition-colors placeholder:text-neutral-600 font-medium" />
                     </div>
                     <div>
-                      <label className="text-xs text-neutral-400 mb-2 block font-medium">Rende quantas unidades?</label>
-                      <input type="number" min="1" placeholder="Ex: 100" value={novaReceita.rendimento || ""} onChange={e => setNovaReceita({...novaReceita, rendimento: parseInt(e.target.value) || 1})} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-amber-500 outline-none transition-colors font-bold text-center" />
+                      <label className="text-xs text-neutral-400 mb-2 block font-medium" title="Quantos itens você vai conseguir vender com essa receita inteira?">
+                        Rende quantas porções para venda?
+                      </label>
+                      <input type="number" min="1" placeholder="Ex: 50 doces, 1 bolo, 10 fatias" value={novaReceita.rendimento || ""} onChange={e => setNovaReceita({...novaReceita, rendimento: parseInt(e.target.value) || 1})} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-amber-500 outline-none transition-colors font-bold text-center text-sm" />
                     </div>
                   </div>
                 </section>
