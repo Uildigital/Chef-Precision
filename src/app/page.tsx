@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings
+  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings, Scale
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
@@ -62,6 +62,29 @@ export default function AppCalculadora() {
   const [selectedInsumoId, setSelectedInsumoId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [showInsumoForm, setShowInsumoForm] = useState(false);
+
+  // Estados do Conversor
+  const [showConverter, setShowConverter] = useState(false);
+  const [convTipo, setConvTipo] = useState('liquido');
+  const [convMedida, setConvMedida] = useState('xicara');
+  const [convQtd, setConvQtd] = useState('');
+
+  const CONVERSOES: Record<string, any> = {
+    'liquido': { nome: 'Líquidos (Leite/Óleo/Água)', xicara: 240, colher_sopa: 15, colher_cha: 5 },
+    'farinha': { nome: 'Farinha de Trigo', xicara: 120, colher_sopa: 8, colher_cha: 3 },
+    'acucar': { nome: 'Açúcar Refinado', xicara: 160, colher_sopa: 10, colher_cha: 4 },
+    'manteiga': { nome: 'Manteiga/Margarina', xicara: 200, colher_sopa: 12, colher_cha: 4 },
+    'cacau': { nome: 'Cacau em Pó', xicara: 90, colher_sopa: 6, colher_cha: 2 },
+    'quilo': { nome: 'Quilos (Kg) para Gramas (g)', kg: 1000 },
+    'litro': { nome: 'Litros (L) para Mililitros (ml)', litro: 1000 }
+  };
+
+  const calcularConversao = () => {
+    const qtd = parseFloat(convQtd) || 0;
+    if (qtd === 0) return 0;
+    const fator = CONVERSOES[convTipo][convMedida];
+    return Math.round(qtd * fator);
+  };
 
   useEffect(() => {
     carregarDados();
@@ -226,6 +249,66 @@ export default function AppCalculadora() {
           )}
         </div>
       </header>
+
+      {/* MODAL DO CONVERSOR DE MEDIDAS */}
+      <AnimatePresence>
+        {showConverter && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Scale className="text-amber-500"/> Conversor Inteligente</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Qual o tipo de Ingrediente?</label>
+                  <select value={convTipo} onChange={e => { setConvTipo(e.target.value); setConvMedida(e.target.value === 'quilo' ? 'kg' : e.target.value === 'litro' ? 'litro' : 'xicara'); }} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500">
+                    {Object.entries(CONVERSOES).map(([key, obj]) => (
+                      <option key={key} value={key}>{obj.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-neutral-400 block mb-1">Medida Base</label>
+                    <select value={convMedida} onChange={e => setConvMedida(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500">
+                      {convTipo === 'quilo' ? (
+                        <option value="kg">Quilogramas (Kg)</option>
+                      ) : convTipo === 'litro' ? (
+                        <option value="litro">Litros (L)</option>
+                      ) : (
+                        <>
+                          <option value="xicara">Xícara de Chá</option>
+                          <option value="colher_sopa">Colher de Sopa</option>
+                          <option value="colher_cha">Colher de Chá</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  <div className="w-24">
+                    <label className="text-xs text-neutral-400 block mb-1">Qtd.</label>
+                    <input type="number" step="0.5" value={convQtd} onChange={e => setConvQtd(e.target.value)} placeholder="Ex: 2" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-between items-end border-t border-white/5">
+                  <span className="text-sm text-neutral-400">Resultado:</span>
+                  <span className="text-2xl font-black text-amber-500">{calcularConversao()} {convTipo === 'litro' ? 'ml' : 'g'}</span>
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button onClick={() => setShowConverter(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors font-medium">Cancelar</button>
+                <button onClick={() => {
+                  const res = calcularConversao();
+                  if (res > 0) setTempQuantidadeUsada(res.toString());
+                  setShowConverter(false);
+                  setConvQtd('');
+                }} className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Usar Valor</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL DE CONFIGURAÇÕES */}
       <AnimatePresence>
@@ -393,7 +476,14 @@ export default function AppCalculadora() {
                         {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'})</option>)}
                       </select>
                     </div>
-                    <input type="number" placeholder="Qtd Usada" value={tempQuantidadeUsada} onChange={e => setTempQuantidadeUsada(e.target.value)} className="w-full md:w-28 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
+                    
+                    <div className="relative flex w-full md:w-auto">
+                      <input type="number" placeholder="Qtd Usada" value={tempQuantidadeUsada} onChange={e => setTempQuantidadeUsada(e.target.value)} className="w-full md:w-32 bg-black/50 border border-white/10 rounded-xl rounded-r-none p-3 text-sm text-white outline-none focus:border-amber-500" />
+                      <button onClick={() => setShowConverter(true)} title="Conversor de Medidas" className="bg-white/5 border-y border-r border-white/10 px-3 hover:bg-white/10 hover:text-amber-500 text-neutral-400 rounded-r-xl transition-colors">
+                        <Scale size={16} />
+                      </button>
+                    </div>
+
                     <button 
                       onClick={() => {
                         if (selectedInsumoId && tempQuantidadeUsada) {
