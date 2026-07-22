@@ -24,11 +24,14 @@ interface ItemUsado {
 interface Receita {
   id: string;
   nome: string;
-  rendimento: number; // Nova propriedade
+  rendimento: number;
   itens: ItemUsado[];
+  embalagens: ItemUsado[];
   minutos_preparo_ativo: number;
   minutos_forno: number;
   margem_lucro_desejada: number; 
+  taxa_venda: number;
+  margem_perda: number;
   preco_sugerido?: number;
   lucro_liquido?: number;
 }
@@ -52,14 +55,21 @@ export default function AppCalculadora() {
     nome: "",
     rendimento: 1,
     itens: [],
+    embalagens: [],
     minutos_preparo_ativo: 0,
     minutos_forno: 0,
-    margem_lucro_desejada: 30
+    margem_lucro_desejada: 30,
+    taxa_venda: 0,
+    margem_perda: 10
   });
 
   const [tempInsumo, setTempInsumo] = useState({ nome: "", preco: "", tamanho: "", unidade_medida: "g" });
   const [tempQuantidadeUsada, setTempQuantidadeUsada] = useState("");
   const [selectedInsumoId, setSelectedInsumoId] = useState("");
+  
+  const [tempEmbalagemQtd, setTempEmbalagemQtd] = useState("");
+  const [selectedEmbalagemId, setSelectedEmbalagemId] = useState("");
+
   const [isSaving, setIsSaving] = useState(false);
   const [showInsumoForm, setShowInsumoForm] = useState(false);
 
@@ -159,7 +169,17 @@ export default function AppCalculadora() {
   };
 
   const calcularResultados = () => {
-    const custoIngredientes = (novaReceita.itens || []).reduce((total, item) => {
+    const custoIngredientesPuros = (novaReceita.itens || []).reduce((total, item) => {
+      const insumoInfo = insumos.find(i => i.id === item.insumoId);
+      if (!insumoInfo) return total;
+      const custoPorGrama = insumoInfo.preco_embalagem / insumoInfo.tamanho_embalagem;
+      return total + (custoPorGrama * item.quantidadeUsada);
+    }, 0);
+
+    const perdas = custoIngredientesPuros * ((novaReceita.margem_perda || 0) / 100);
+    const custoIngredientes = custoIngredientesPuros + perdas;
+
+    const custoEmbalagens = (novaReceita.embalagens || []).reduce((total, item) => {
       const insumoInfo = insumos.find(i => i.id === item.insumoId);
       if (!insumoInfo) return total;
       const custoPorGrama = insumoInfo.preco_embalagem / insumoInfo.tamanho_embalagem;
@@ -168,23 +188,27 @@ export default function AppCalculadora() {
 
     const custoMaoDeObra = (novaReceita.minutos_preparo_ativo || 0) * valorMinutoTrabalho;
     const custoForno = (novaReceita.minutos_forno || 0) * custoFixoPorMinutoForno;
-    const custoTotalReceita = custoIngredientes + custoMaoDeObra + custoForno;
+    const custoTotalReceita = custoIngredientes + custoEmbalagens + custoMaoDeObra + custoForno;
     
     const rendimento = novaReceita.rendimento || 1;
     const custoUnitario = custoTotalReceita / rendimento;
     
     const margem = (novaReceita.margem_lucro_desejada || 0) / 100;
     const precoSugeridoUnitario = custoUnitario / (1 - margem);
-    const lucroLiquidoUnitario = precoSugeridoUnitario - custoUnitario;
+    
+    const taxaVenda = (novaReceita.taxa_venda || 0) / 100;
+    const descontoTaxa = precoSugeridoUnitario * taxaVenda;
+
+    const lucroLiquidoUnitario = precoSugeridoUnitario - custoUnitario - descontoTaxa;
 
     const precoSugeridoTotal = precoSugeridoUnitario * rendimento;
     const lucroLiquidoTotal = lucroLiquidoUnitario * rendimento;
 
     return { 
-      custoIngredientes, custoMaoDeObra, custoForno, 
+      custoIngredientesPuros, perdas, custoIngredientes, custoEmbalagens, custoMaoDeObra, custoForno, 
       custoTotalReceita, custoUnitario, 
       precoSugeridoUnitario, lucroLiquidoUnitario,
-      precoSugeridoTotal, lucroLiquidoTotal
+      precoSugeridoTotal, lucroLiquidoTotal, descontoTaxa
     };
   };
 
@@ -195,9 +219,12 @@ export default function AppCalculadora() {
       nome: novaReceita.nome,
       rendimento: novaReceita.rendimento || 1,
       itens: novaReceita.itens,
+      embalagens: novaReceita.embalagens || [],
       minutos_preparo_ativo: novaReceita.minutos_preparo_ativo,
       minutos_forno: novaReceita.minutos_forno,
       margem_lucro_desejada: novaReceita.margem_lucro_desejada,
+      taxa_venda: novaReceita.taxa_venda || 0,
+      margem_perda: novaReceita.margem_perda || 0,
       preco_sugerido: res.precoSugeridoTotal,
       lucro_liquido: res.lucroLiquidoTotal
     };
@@ -245,8 +272,23 @@ export default function AppCalculadora() {
     });
   };
 
+  const adicionarEmbalagemAReceita = (insumoId: string, quantidade: number) => {
+    setNovaReceita(prev => ({
+      ...prev,
+      embalagens: [...(prev.embalagens || []), { insumoId, quantidadeUsada: quantidade }]
+    }));
+  };
+
+  const removerEmbalagemDaReceita = (index: number) => {
+    setNovaReceita(prev => {
+      const novos = [...(prev.embalagens || [])];
+      novos.splice(index, 1);
+      return { ...prev, embalagens: novos };
+    });
+  };
+
   const iniciarNovaPrecificacao = () => {
-    setNovaReceita({ nome: "", rendimento: 1, itens: [], minutos_preparo_ativo: 0, minutos_forno: 0, margem_lucro_desejada: 30 });
+    setNovaReceita({ nome: "", rendimento: 1, itens: [], embalagens: [], minutos_preparo_ativo: 0, minutos_forno: 0, margem_lucro_desejada: 30, taxa_venda: 0, margem_perda: 10 });
     setView('builder');
   };
 
@@ -632,6 +674,68 @@ export default function AppCalculadora() {
                   </div>
                 </section>
 
+                {/* Embalagens */}
+                <section className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-pink-400 flex items-center gap-2"><Package size={16}/> Embalagens</h2>
+                    <button onClick={() => setShowInsumoForm(!showInsumoForm)} className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1">
+                      <Plus size={14}/> Cadastrar Embalagem
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-3 mb-6">
+                    <div className="flex-1 relative">
+                      <select value={selectedEmbalagemId} onChange={(e) => setSelectedEmbalagemId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-neutral-300 outline-none focus:border-pink-500 appearance-none">
+                        <option value="" disabled>Selecione uma embalagem da despensa...</option>
+                        {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'un'})</option>)}
+                      </select>
+                    </div>
+                    
+                    <div className="relative flex w-full md:w-auto">
+                      <input type="number" placeholder="Qtd Usada" value={tempEmbalagemQtd} onChange={e => setTempEmbalagemQtd(e.target.value)} className="w-full md:w-32 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-pink-500" />
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        if (selectedEmbalagemId && tempEmbalagemQtd) {
+                          adicionarEmbalagemAReceita(selectedEmbalagemId, parseFloat(tempEmbalagemQtd));
+                          setTempEmbalagemQtd("");
+                          setSelectedEmbalagemId("");
+                        }
+                      }}
+                      className="bg-white/10 hover:bg-white/20 text-white font-medium px-6 rounded-xl transition-colors"
+                    >
+                      Incluir
+                    </button>
+                  </div>
+
+                  {/* Tabela de Embalagens Usadas */}
+                  <div className="space-y-2">
+                    {novaReceita.embalagens?.length === 0 ? (
+                      <div className="text-center py-6 border-2 border-dashed border-white/5 rounded-xl">
+                        <p className="text-sm text-neutral-500">Nenhuma embalagem adicionada.</p>
+                      </div>
+                    ) : (
+                      novaReceita.embalagens?.map((item, idx) => {
+                        const insumo = insumos.find(i => i.id === item.insumoId);
+                        const custo = insumo ? (insumo.preco_embalagem / insumo.tamanho_embalagem) * item.quantidadeUsada : 0;
+                        return (
+                          <div key={idx} className="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/5 group hover:border-white/10 transition-colors">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-white">{insumo?.nome || 'Carregando...'}</span>
+                              <span className="text-xs text-neutral-500">{item.quantidadeUsada} {insumo?.unidade_medida || 'un'} usados(as)</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm font-bold text-neutral-300">R$ {custo.toFixed(2)}</span>
+                              <button onClick={() => removerEmbalagemDaReceita(idx)} className="text-red-400/50 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors"><Trash2 size={16} /></button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+
                 {/* Tempo e Custos Operacionais */}
                 <section className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
                   <div className="flex justify-between items-center mb-6">
@@ -686,8 +790,21 @@ export default function AppCalculadora() {
 
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center text-neutral-400">
-                      <span>Ingredientes</span>
-                      <span className="text-white">R$ {res.custoIngredientes.toFixed(2)}</span>
+                      <span>Ingredientes Puros</span>
+                      <span className="text-white">R$ {res.custoIngredientesPuros.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-neutral-400">
+                      <div className="flex items-center gap-2">
+                         <span>Margem de Perdas / Segurança</span>
+                         <input type="number" value={novaReceita.margem_perda} onChange={e => setNovaReceita({...novaReceita, margem_perda: parseInt(e.target.value) || 0})} className="w-14 bg-black border border-white/10 rounded p-1 text-xs text-center text-white outline-none focus:border-amber-500" /> %
+                      </div>
+                      <span className="text-white">+ R$ {res.perdas.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-neutral-400 pt-2 border-t border-white/5">
+                      <span>Embalagens</span>
+                      <span className="text-white">R$ {res.custoEmbalagens.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-neutral-400">
                       <span>Mão de Obra</span>
@@ -716,15 +833,23 @@ export default function AppCalculadora() {
                       <span className="text-lg font-medium text-neutral-300">R$ {res.custoUnitario.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-end">
-                      <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">Preço de Venda</span>
+                      <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">Preço Sugerido de Venda</span>
                       <span className="text-4xl font-black text-white tracking-tight">R$ {res.precoSugeridoUnitario.toFixed(2)}</span>
                     </div>
                   </div>
 
                   <div className="mt-4 flex justify-between items-center px-2">
-                    <span className="text-xs text-neutral-500 font-medium">Lucro Líquido no bolso:</span>
-                    <span className="text-sm font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded-lg border border-green-400/20">
-                      + R$ {res.lucroLiquidoUnitario.toFixed(2)} {novaReceita.rendimento && novaReceita.rendimento > 1 ? '/ un' : ''}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-neutral-500 font-medium">Taxas de Venda (Cartão/iFood)</span>
+                      <input type="number" value={novaReceita.taxa_venda} onChange={e => setNovaReceita({...novaReceita, taxa_venda: parseInt(e.target.value) || 0})} className="w-14 bg-black border border-white/10 rounded p-1 text-xs text-center text-white outline-none focus:border-red-500" /> %
+                    </div>
+                    <span className="text-sm text-red-400 font-bold">- R$ {res.descontoTaxa.toFixed(2)}</span>
+                  </div>
+
+                  <div className="mt-4 flex justify-between items-center px-4 py-3 bg-green-500/10 rounded-xl border border-green-500/20">
+                    <span className="text-sm text-green-400 font-medium uppercase tracking-wider">LUCRO REAL LÍQUIDO:</span>
+                    <span className="text-xl font-black text-green-400">
+                      R$ {res.lucroLiquidoUnitario.toFixed(2)} {novaReceita.rendimento && novaReceita.rendimento > 1 ? '/ un' : ''}
                     </span>
                   </div>
 
