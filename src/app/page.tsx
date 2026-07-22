@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle
+  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
@@ -13,6 +13,7 @@ interface Insumo {
   nome: string;
   preco_embalagem: number;
   tamanho_embalagem: number;
+  unidade_medida?: string;
 }
 
 interface ItemUsado {
@@ -37,13 +38,14 @@ export default function AppCalculadora() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [receitasSalvas, setReceitasSalvas] = useState<Receita[]>([]);
   
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
-  // Configurações Globais Fixas
-  const metaSalarial = 3000;
-  const horasMensais = 160;
-  const valorMinutoTrabalho = metaSalarial / (horasMensais * 60); // R$ 0,31/min
-  const custoFixoPorMinutoForno = 0.15;
+  // Configurações Globais
+  const [config, setConfig] = useState({ metaSalarial: 3000, horasMensais: 160, custoFixoPorMinutoForno: 0.15 });
+  const [showConfig, setShowConfig] = useState(false);
+
+  const valorMinutoTrabalho = config.metaSalarial / (config.horasMensais * 60);
+  const custoFixoPorMinutoForno = config.custoFixoPorMinutoForno;
 
   // Estado do Construtor (Builder)
   const [novaReceita, setNovaReceita] = useState<Partial<Receita>>({
@@ -55,13 +57,18 @@ export default function AppCalculadora() {
     margem_lucro_desejada: 30
   });
 
-  const [tempInsumo, setTempInsumo] = useState({ nome: "", preco: "", tamanho: "" });
+  const [tempInsumo, setTempInsumo] = useState({ nome: "", preco: "", tamanho: "", unidade_medida: "g" });
   const [tempQuantidadeUsada, setTempQuantidadeUsada] = useState("");
+  const [selectedInsumoId, setSelectedInsumoId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [showInsumoForm, setShowInsumoForm] = useState(false);
 
   useEffect(() => {
     carregarDados();
+    const savedConfig = localStorage.getItem('chef_precision_config');
+    if (savedConfig) {
+      setConfig(JSON.parse(savedConfig));
+    }
   }, []);
 
   const carregarDados = async () => {
@@ -79,20 +86,23 @@ export default function AppCalculadora() {
     const novo = {
       nome: tempInsumo.nome,
       preco_embalagem: parseFloat(tempInsumo.preco),
-      tamanho_embalagem: parseFloat(tempInsumo.tamanho)
+      tamanho_embalagem: parseFloat(tempInsumo.tamanho),
+      unidade_medida: tempInsumo.unidade_medida || "g"
     };
     
     const { data, error } = await supabase.from('insumos').insert([novo]).select().single();
     setIsSaving(false);
     
     if (error) {
-      console.error(error);
+      console.error("Erro Supabase Insumos:", error);
+      alert("Erro ao salvar ingrediente. Verifique a conexão com o banco de dados.");
       return null;
     }
 
     setInsumos(prev => [data, ...prev]);
-    setTempInsumo({ nome: "", preco: "", tamanho: "" });
+    setTempInsumo({ nome: "", preco: "", tamanho: "", unidade_medida: "g" });
     setShowInsumoForm(false);
+    if(data) setSelectedInsumoId(data.id);
     return data as Insumo;
   };
 
@@ -144,7 +154,10 @@ export default function AppCalculadora() {
     const { data, error } = await supabase.from('receitas').insert([receitaParaSalvar]).select().single();
     setIsSaving(false);
 
-    if (!error && data) {
+    if (error) {
+      console.error("Erro Supabase Receitas:", error);
+      alert("Erro ao salvar a ficha técnica. Verifique a conexão com o banco de dados.");
+    } else if (data) {
       setReceitasSalvas(prev => [data, ...prev]);
       setView('dashboard');
     }
@@ -182,12 +195,54 @@ export default function AppCalculadora() {
           </div>
           <h1 className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">Chef Precision</h1>
         </div>
-        {view === 'builder' && (
-          <button onClick={() => setView('dashboard')} className="text-sm font-medium text-neutral-400 hover:text-white flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/5 transition-colors">
-            <ArrowLeft size={16} /> Voltar ao Painel
+        <div className="flex items-center gap-4">
+          <button onClick={() => setShowConfig(true)} className="text-neutral-400 hover:text-amber-500 transition-colors p-2" title="Configurações">
+            <Settings size={20} />
           </button>
-        )}
+          {view === 'builder' && (
+            <button onClick={() => setView('dashboard')} className="text-sm font-medium text-neutral-400 hover:text-white flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/5 transition-colors">
+              <ArrowLeft size={16} /> Voltar ao Painel
+            </button>
+          )}
+        </div>
       </header>
+
+      {/* MODAL DE CONFIGURAÇÕES */}
+      <AnimatePresence>
+        {showConfig && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Settings className="text-amber-500"/> Configurações de Custos</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Sua Meta Salarial (R$ por mês)</label>
+                  <input type="number" value={config.metaSalarial} onChange={e => setConfig({...config, metaSalarial: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Horas Trabalhadas (por mês)</label>
+                  <input type="number" value={config.horasMensais} onChange={e => setConfig({...config, horasMensais: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Custo do Gás/Energia (R$ por minuto)</label>
+                  <input type="number" step="0.01" value={config.custoFixoPorMinutoForno} onChange={e => setConfig({...config, custoFixoPorMinutoForno: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                  <p className="text-[10px] text-neutral-500 mt-1 leading-relaxed">
+                    Dica: Se um botijão de R$120 dura em média 30h (1800 minutos) de forno ligado direto, seu custo é R$120 / 1800 = R$ 0,07 por minuto.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button onClick={() => setShowConfig(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors font-medium">Cancelar</button>
+                <button onClick={() => {
+                  localStorage.setItem('chef_precision_config', JSON.stringify(config));
+                  setShowConfig(false);
+                }} className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Salvar Custos</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <main className="pt-24 pb-10 px-6 max-w-7xl mx-auto min-h-screen">
         <AnimatePresence mode="wait">
@@ -244,7 +299,7 @@ export default function AppCalculadora() {
                         <div key={i.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
                           <span className="text-sm font-medium text-neutral-300">{i.nome}</span>
                           <span className="text-xs font-bold text-neutral-500 bg-white/5 px-2 py-1 rounded">
-                            R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}g
+                            R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'}
                           </span>
                         </div>
                       ))}
@@ -293,8 +348,13 @@ export default function AppCalculadora() {
                         <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex flex-col md:flex-row gap-3">
                           <input type="text" placeholder="Nome (Ex: Leite Moça)" value={tempInsumo.nome} onChange={e => setTempInsumo({...tempInsumo, nome: e.target.value})} className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
                           <div className="flex gap-3">
-                            <input type="number" placeholder="Preço Pago (R$)" value={tempInsumo.preco} onChange={e => setTempInsumo({...tempInsumo, preco: e.target.value})} className="w-32 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
-                            <input type="number" placeholder="Peso na Emb. (g)" value={tempInsumo.tamanho} onChange={e => setTempInsumo({...tempInsumo, tamanho: e.target.value})} className="w-32 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
+                            <input type="number" placeholder="Preço Pago (R$)" value={tempInsumo.preco} onChange={e => setTempInsumo({...tempInsumo, preco: e.target.value})} className="w-28 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
+                            <input type="number" placeholder="Tamanho" value={tempInsumo.tamanho} onChange={e => setTempInsumo({...tempInsumo, tamanho: e.target.value})} className="w-24 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
+                            <select value={tempInsumo.unidade_medida} onChange={e => setTempInsumo({...tempInsumo, unidade_medida: e.target.value})} className="w-20 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500">
+                              <option value="g">g</option>
+                              <option value="ml">ml</option>
+                              <option value="un">un</option>
+                            </select>
                             <button onClick={salvarNovoInsumo} disabled={isSaving} className="bg-amber-500 text-black font-bold px-4 rounded-xl hover:bg-amber-400 transition-colors whitespace-nowrap disabled:opacity-50">
                               Salvar
                             </button>
@@ -307,23 +367,18 @@ export default function AppCalculadora() {
                   {/* Adicionar Insumo Existente */}
                   <div className="flex flex-col md:flex-row gap-3 mb-6">
                     <div className="flex-1 relative">
-                      <select onChange={(e) => {
-                        const id = e.target.value;
-                        if(id) {
-                           setNovaReceita(prev => ({...prev, _tempSelectedInsumo: id}));
-                        }
-                      }} defaultValue="" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-neutral-300 outline-none focus:border-amber-500 appearance-none">
+                      <select value={selectedInsumoId} onChange={(e) => setSelectedInsumoId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-neutral-300 outline-none focus:border-amber-500 appearance-none">
                         <option value="" disabled>Selecione um ingrediente da despensa...</option>
-                        {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)}/{i.tamanho_embalagem}g)</option>)}
+                        {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} (R$ {i.preco_embalagem.toFixed(2)} / {i.tamanho_embalagem}{i.unidade_medida || 'g'})</option>)}
                       </select>
                     </div>
-                    <input type="number" placeholder="Qtd Usada (g/ml)" value={tempQuantidadeUsada} onChange={e => setTempQuantidadeUsada(e.target.value)} className="w-full md:w-40 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
+                    <input type="number" placeholder="Qtd Usada" value={tempQuantidadeUsada} onChange={e => setTempQuantidadeUsada(e.target.value)} className="w-full md:w-28 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
                     <button 
                       onClick={() => {
-                        const insumoId = (novaReceita as any)._tempSelectedInsumo;
-                        if (insumoId && tempQuantidadeUsada) {
-                          adicionarItemAReceita(insumoId, parseFloat(tempQuantidadeUsada));
+                        if (selectedInsumoId && tempQuantidadeUsada) {
+                          adicionarItemAReceita(selectedInsumoId, parseFloat(tempQuantidadeUsada));
                           setTempQuantidadeUsada("");
+                          setSelectedInsumoId("");
                         }
                       }}
                       className="bg-white/10 hover:bg-white/20 text-white font-medium px-6 rounded-xl transition-colors"
@@ -346,7 +401,7 @@ export default function AppCalculadora() {
                           <div key={idx} className="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/5 group hover:border-white/10 transition-colors">
                             <div className="flex flex-col">
                               <span className="text-sm font-medium text-white">{insumo?.nome || 'Carregando...'}</span>
-                              <span className="text-xs text-neutral-500">{item.quantidadeUsada} gramas usadas</span>
+                              <span className="text-xs text-neutral-500">{item.quantidadeUsada} {insumo?.unidade_medida || 'g'} {insumo?.unidade_medida === 'un' ? '' : 'usados(as)'}</span>
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="text-sm font-bold text-neutral-300">R$ {custo.toFixed(2)}</span>
