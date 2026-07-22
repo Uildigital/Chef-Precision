@@ -151,14 +151,29 @@ export default function AppCalculadora() {
     };
 
     setIsSaving(true);
-    const { data, error } = await supabase.from('receitas').insert([receitaParaSalvar]).select().single();
+    
+    let data, error;
+    if (novaReceita.id) {
+      const result = await supabase.from('receitas').update(receitaParaSalvar).eq('id', novaReceita.id).select().single();
+      data = result.data;
+      error = result.error;
+    } else {
+      const result = await supabase.from('receitas').insert([receitaParaSalvar]).select().single();
+      data = result.data;
+      error = result.error;
+    }
+    
     setIsSaving(false);
 
     if (error) {
       console.error("Erro Supabase Receitas:", error);
       alert("Erro ao salvar a ficha técnica. Verifique a conexão com o banco de dados.");
     } else if (data) {
-      setReceitasSalvas(prev => [data, ...prev]);
+      if (novaReceita.id) {
+        setReceitasSalvas(prev => prev.map(r => r.id === data.id ? data : r));
+      } else {
+        setReceitasSalvas(prev => [data, ...prev]);
+      }
       setView('dashboard');
     }
   };
@@ -180,6 +195,11 @@ export default function AppCalculadora() {
 
   const iniciarNovaPrecificacao = () => {
     setNovaReceita({ nome: "", rendimento: 1, itens: [], minutos_preparo_ativo: 0, minutos_forno: 0, margem_lucro_desejada: 30 });
+    setView('builder');
+  };
+
+  const editarFichaTecnica = (receita: Receita) => {
+    setNovaReceita(receita);
     setView('builder');
   };
 
@@ -270,15 +290,16 @@ export default function AppCalculadora() {
                   ) : (
                     <div className="space-y-3">
                       {receitasSalvas.map(r => (
-                        <div key={r.id} className="group relative overflow-hidden flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <div key={r.id} onClick={() => editarFichaTecnica(r)} className="group cursor-pointer relative overflow-hidden flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 hover:border-amber-500/30 transition-all hover:bg-white/5">
                           <div className="z-10">
-                            <p className="font-bold text-sm text-white">{r.nome}</p>
+                            <p className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">{r.nome}</p>
                             <p className="text-xs text-neutral-400 mt-1">Lote R$ {r.preco_sugerido?.toFixed(2)}</p>
                           </div>
                           <div className="z-10 text-right">
-                            <p className="text-xs text-green-400 font-bold bg-green-400/10 px-2 py-1 rounded-md inline-block border border-green-400/20">
+                            <p className="text-xs text-green-400 font-bold bg-green-400/10 px-2 py-1 rounded-md inline-block border border-green-400/20 mb-1 block w-fit ml-auto">
                               + R$ {r.lucro_liquido?.toFixed(2)}
                             </p>
+                            <span className="text-[10px] text-neutral-500 group-hover:text-amber-500 transition-colors block">Clique para editar</span>
                           </div>
                         </div>
                       ))}
