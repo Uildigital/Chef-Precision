@@ -245,15 +245,17 @@ export default function VSLSalesPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* FOOTER & DISCLAIMER */}
       <footer className="border-t border-white/5 py-16 px-6 text-center text-neutral-500 text-sm">
         <div className="flex items-center justify-center gap-2 mb-4">
           <ChefHat size={20} className="text-neutral-600" />
           <span className="font-bold text-neutral-400">Precifica Chef</span>
         </div>
         <p>© 2026 Precifica Chef. Todos os direitos reservados.</p>
-        <p className="mt-2 text-xs">Esta ferramenta é um software como serviço (SaaS) independente.</p>
-        <div className="mt-8 flex justify-center gap-6 text-xs">
+        <p className="mt-2 text-xs max-w-2xl mx-auto text-neutral-600">
+          <strong>Aviso Legal (Disclaimer):</strong> Este site não faz parte do site do Facebook, Instagram, Google ou da Meta Platforms, Inc. Além disso, este site NÃO é endossado pelo Facebook ou Google de nenhuma maneira. FACEBOOK e GOOGLE são marcas comerciais independentes. Os resultados podem variar de pessoa para pessoa, a ferramenta serve como um sistema auxiliar de gestão.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-6 text-xs">
           <a href="#" className="hover:text-white transition-colors">Termos de Uso</a>
           <a href="#" className="hover:text-white transition-colors">Política de Privacidade</a>
           <a href="#" className="hover:text-white transition-colors">Contato</a>
