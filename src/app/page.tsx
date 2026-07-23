@@ -756,7 +756,14 @@ export default function AppCalculadora() {
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="text-sm font-bold text-neutral-300">R$ {custo.toFixed(2)}</span>
-                              <button onClick={() => removerItemDaReceita(idx)} className="text-red-400/50 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors"><Trash2 size={16} /></button>
+                              <div className="flex gap-1">
+                                <button onClick={() => {
+                                  setSelectedInsumoId(insumo?.id || "");
+                                  setTempQuantidadeUsada(item.quantidadeUsada.toString());
+                                  removerItemDaReceita(idx);
+                                }} className="text-blue-400/50 hover:text-blue-400 p-2 rounded-lg hover:bg-blue-400/10 transition-colors" title="Editar quantidade"><Edit2 size={16} /></button>
+                                <button onClick={() => removerItemDaReceita(idx)} className="text-red-400/50 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors" title="Remover"><Trash2 size={16} /></button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -839,7 +846,14 @@ export default function AppCalculadora() {
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="text-sm font-bold text-neutral-300">R$ {custo.toFixed(2)}</span>
-                              <button onClick={() => removerEmbalagemDaReceita(idx)} className="text-red-400/50 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors"><Trash2 size={16} /></button>
+                              <div className="flex gap-1">
+                                <button onClick={() => {
+                                  setSelectedEmbalagemId(insumo?.id || "");
+                                  setTempEmbalagemQtd(item.quantidadeUsada.toString());
+                                  removerEmbalagemDaReceita(idx);
+                                }} className="text-blue-400/50 hover:text-blue-400 p-2 rounded-lg hover:bg-blue-400/10 transition-colors" title="Editar quantidade"><Edit2 size={16} /></button>
+                                <button onClick={() => removerEmbalagemDaReceita(idx)} className="text-red-400/50 hover:text-red-400 p-2 rounded-lg hover:bg-red-400/10 transition-colors" title="Remover"><Trash2 size={16} /></button>
+                              </div>
                             </div>
                           </div>
                         );
