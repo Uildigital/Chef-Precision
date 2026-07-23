@@ -387,29 +387,30 @@ export default function AppCalculadora() {
         {showConfig && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
-                    <div className="flex-1">
-                      <label className="text-[10px] text-neutral-500 block mb-1">Preço do Botijão cheio (R$)</label>
-                      <input type="number" placeholder="Ex: 120" onChange={e => {
-                        const preco = parseFloat(e.target.value) || 0;
-                        if (preco > 0) setConfig({...config, custoFixoPorMinutoForno: Number((preco / 1800).toFixed(4))});
-                      }} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-amber-500" />
-                    </div>
-                  </div>
-                  
-                  <label className="text-xs text-neutral-400 block mb-1">Custo final (R$ por minuto)</label>
-                  <input type="number" step="0.001" value={config.custoFixoPorMinutoForno} onChange={e => setConfig({...config, custoFixoPorMinutoForno: parseFloat(e.target.value) || 0})} className="w-full bg-black border border-white/10 rounded-lg p-2 text-white outline-none focus:border-amber-500 font-mono" />
-                  <p className="text-[10px] text-neutral-500 mt-2 leading-relaxed">
-                    * O sistema calcula automaticamente dividindo o valor do botijão por 1.800 minutos (média de duração de 30 horas de forno ligado).
-                  </p>
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Settings className="text-amber-500"/> Configurações de Custos</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Sua Meta Salarial / Pró-labore (R$ por mês)</label>
+                  <input type="number" value={salarioDesejado} onChange={e => setSalarioDesejado(Number(e.target.value))} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Preço do Botijão de Gás cheio (R$)</label>
+                  <input type="number" value={custoFixoMensal} onChange={e => setCustoFixoMensal(Number(e.target.value))} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Custos Fixos do Negócio (Aluguel, Luz, MEI, Água) (R$)</label>
+                  <input type="number" value={custosFixos} onChange={e => setCustosFixos(Number(e.target.value))} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-1">Horas Trabalhadas no Mês</label>
+                  <input type="number" value={horasTrabalhoMensal} onChange={e => setHorasTrabalhoMensal(Number(e.target.value))} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                  <p className="text-[10px] text-neutral-500 mt-1">Ex: 8h x 20 dias = 160h</p>
                 </div>
               </div>
 
               <div className="mt-8 flex gap-3">
-                <button onClick={() => setShowConfig(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors font-medium">Cancelar</button>
-                <button onClick={() => {
-                  localStorage.setItem('chef_precision_config', JSON.stringify(config));
-                  setShowConfig(false);
-                }} className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Salvar Custos</button>
+                <button onClick={() => setShowConfig(false)} className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Concluído</button>
               </div>
             </motion.div>
           </div>
