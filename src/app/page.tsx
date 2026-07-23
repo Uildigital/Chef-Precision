@@ -286,6 +286,41 @@ export default function AppCalculadora() {
     }
   };
 
+  const adicionarItemAReceita = (insumoId: string, quantidade: number) => {
+    setNovaReceita(prev => ({
+      ...prev,
+      itens: [...(prev.itens || []), { insumoId, quantidadeUsada: quantidade }]
+    }));
+  };
+
+  const removerItemDaReceita = (index: number) => {
+    setNovaReceita(prev => {
+      const novos = [...(prev.itens || [])];
+      novos.splice(index, 1);
+      return { ...prev, itens: novos };
+    });
+  };
+
+  const adicionarEmbalagemAReceita = (insumoId: string, quantidade: number) => {
+    setNovaReceita(prev => ({
+      ...prev,
+      embalagens: [...(prev.embalagens || []), { insumoId, quantidadeUsada: quantidade }]
+    }));
+  };
+
+  const removerEmbalagemDaReceita = (index: number) => {
+    setNovaReceita(prev => {
+      const novos = [...(prev.embalagens || [])];
+      novos.splice(index, 1);
+      return { ...prev, embalagens: novos };
+    });
+  };
+
+  const iniciarNovaPrecificacao = () => {
+    setNovaReceita({ nome: "", rendimento: 1, itens: [], embalagens: [], minutos_preparo_ativo: 0, minutos_forno: 0, margem_lucro_desejada: 30, taxa_venda: 0, margem_perda: 10 });
+    setView('builder');
+  };
+
   const excluirReceita = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja excluir?")) return;
