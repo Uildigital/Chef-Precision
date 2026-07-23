@@ -60,11 +60,11 @@ export default function VSLSalesPage() {
           <div className="w-full max-w-3xl bg-neutral-900/50 border border-white/10 rounded-3xl p-8 md:p-12 text-left shadow-2xl relative mx-auto">
             <h3 className="text-2xl font-black text-white mb-6">De um Confeiteiro para você...</h3>
             
-            <div className="w-full aspect-[21/9] bg-neutral-800 rounded-2xl overflow-hidden mb-8 border border-white/5 shadow-inner">
+            <div className="w-full h-48 md:h-72 bg-neutral-800 rounded-2xl overflow-hidden mb-8 border border-white/5 shadow-inner">
               <img 
                 src="https://images.unsplash.com/photo-1556910103-1c02745a8e0f?q=80&w=2070&auto=format&fit=crop" 
                 alt="Confeiteira trabalhando na cozinha" 
-                className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-500"
+                className="w-full h-full object-cover opacity-90"
               />
             </div>
 
