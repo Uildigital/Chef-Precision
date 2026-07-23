@@ -399,7 +399,7 @@ export default function AppCalculadora() {
             <div className="bg-gradient-to-br from-amber-400 to-orange-600 p-4 rounded-2xl shadow-lg shadow-orange-500/20 mb-4">
               <ChefHat className="text-white" size={32} />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-center">Chef Precision</h1>
+            <h1 className="text-3xl font-black tracking-tight text-center">Precifica Chef</h1>
             <p className="text-neutral-400 text-sm mt-2 text-center">Faça login para acessar suas fichas técnicas.</p>
           </div>
 
@@ -443,7 +443,7 @@ export default function AppCalculadora() {
           <div className="bg-gradient-to-br from-amber-400 to-orange-600 p-2 rounded-xl shadow-lg shadow-orange-500/20">
             <ChefHat className="text-white" size={20} />
           </div>
-          <h1 className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">Chef Precision</h1>
+          <h1 className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">Precifica Chef</h1>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setShowConfig(true)} className="text-neutral-400 hover:text-amber-500 transition-colors p-2" title="Configurações">

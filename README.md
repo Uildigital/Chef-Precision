@@ -1,4 +1,4 @@
-# 🌽 Chef Precision: Gestão de Custos & Receitas Inteligentes
+# 🌽 Precifica Chef: Gestão de Custos & Receitas Inteligentes
 
 Um Webbook avançado focado na sazonalidade de festas juninas, que funciona como um **Minisistema de Gestão de Produção (ERP Lite)** para empreendedores culinários.
 
