@@ -333,6 +333,8 @@ export default function AppCalculadora() {
     }
   };
 
+  const res = view === 'builder' ? calcularResultados() : null;
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-neutral-50 font-sans selection:bg-amber-500 selection:text-black">
       <style>{`
