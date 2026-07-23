@@ -202,11 +202,13 @@ export default function AppCalculadora() {
     const custoUnitario = custoTotalReceita / rendimento;
     
     const margem = (novaReceita.margem_lucro_desejada || 0) / 100;
-    const precoSugeridoUnitario = custoUnitario / (1 - margem);
-    
     const taxaVenda = (novaReceita.taxa_venda || 0) / 100;
+    
+    // Markup divisor inteligente: absorve a margem de lucro E a taxa da plataforma
+    const denominador = 1 - margem - taxaVenda;
+    const precoSugeridoUnitario = denominador > 0 ? (custoUnitario / denominador) : 0;
+    
     const descontoTaxa = precoSugeridoUnitario * taxaVenda;
-
     const lucroLiquidoUnitario = precoSugeridoUnitario - custoUnitario - descontoTaxa;
 
     const precoSugeridoTotal = precoSugeridoUnitario * rendimento;
@@ -804,6 +806,23 @@ export default function AppCalculadora() {
                   </div>
                 </section>
 
+                {/* Taxas de Plataformas / Venda */}
+                <section className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-red-400 mb-6 flex items-center gap-2"><Target size={16}/> Plataformas de Venda</h2>
+                  <div>
+                    <label className="text-xs text-neutral-400 mb-2 block font-medium" title="Taxa do iFood, UberEats, ou da sua maquininha de cartão">
+                      Taxa do Aplicativo ou Maquininha de Cartão (%)
+                    </label>
+                    <div className="relative">
+                      <input type="number" placeholder="Ex: 20 para iFood" value={novaReceita.taxa_venda || ""} onChange={e => setNovaReceita({...novaReceita, taxa_venda: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 pr-16 text-white focus:border-red-500 outline-none transition-colors font-bold" />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">%</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 mt-2">
+                      O aplicativo vai calcular o seu preço de venda final <strong>absorvendo essa taxa</strong>, garantindo que você não perca nem um centavo da sua margem de lucro para o iFood.
+                    </p>
+                  </div>
+                </section>
+
               </div>
 
               {/* DIREITA: Cupom Fiscal Fixo (Sticky) */}
@@ -877,10 +896,7 @@ export default function AppCalculadora() {
                   </div>
 
                   <div className="mt-4 flex justify-between items-center px-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500 font-medium">Taxas de Venda (Cartão/iFood)</span>
-                      <input type="number" value={novaReceita.taxa_venda} onChange={e => setNovaReceita({...novaReceita, taxa_venda: parseInt(e.target.value) || 0})} className="w-14 bg-black border border-white/10 rounded p-1 text-xs text-center text-white outline-none focus:border-red-500" /> %
-                    </div>
+                    <span className="text-xs text-neutral-500 font-medium">Taxas Pagas à Plataforma ({novaReceita.taxa_venda || 0}%):</span>
                     <span className="text-sm text-red-400 font-bold">- R$ {res.descontoTaxa.toFixed(2)}</span>
                   </div>
 
