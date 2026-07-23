@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings, Scale, Edit2
+  Calculator, Plus, Clock, ArrowLeft, ChefHat, Trash2, Save, Package, Flame, Target, CheckCircle2, AlertCircle, Settings, Scale, Edit2, Printer, Minus, ShoppingBag, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
@@ -41,15 +41,23 @@ export default function AppCalculadora() {
   const [view, setView] = useState<'dashboard' | 'builder'>('dashboard');
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [receitasSalvas, setReceitasSalvas] = useState<Receita[]>([]);
+  const [viewingReceita, setViewingReceita] = useState<Receita | null>(null);
+  const [escala, setEscala] = useState(1);
   
   const [supabase] = useState(() => createClient());
 
   // Configurações Globais
-  const [config, setConfig] = useState({ metaSalarial: 3000, horasMensais: 160, custoFixoPorMinutoForno: 0.15 });
+  const [horasTrabalhoMensal, setHorasTrabalhoMensal] = useState(160);
+  const [salarioDesejado, setSalarioDesejado] = useState(2500);
+  const [custosFixos, setCustosFixos] = useState(500);
+  const [custoFixoMensal, setCustoFixoMensal] = useState(120);
+
   const [showConfig, setShowConfig] = useState(false);
 
-  const valorMinutoTrabalho = config.metaSalarial / (config.horasMensais * 60);
-  const custoFixoPorMinutoForno = config.custoFixoPorMinutoForno;
+  // Derivados
+  const valorMinutoTrabalho = salarioDesejado / (horasTrabalhoMensal * 60);
+  const custoFixoPorMinutoForno = custoFixoMensal / (horasTrabalhoMensal * 60);
+  const custoFixoPorMinutoTrabalho = custosFixos / (horasTrabalhoMensal * 60);
 
   // Estado do Construtor (Builder)
   const [novaReceita, setNovaReceita] = useState<Partial<Receita>>({
@@ -103,12 +111,24 @@ export default function AppCalculadora() {
   };
 
   useEffect(() => {
+    const savedSalario = localStorage.getItem('salarioDesejado');
+    if (savedSalario) setSalarioDesejado(Number(savedSalario));
+    const savedBotijao = localStorage.getItem('custoFixoMensal');
+    if (savedBotijao) setCustoFixoMensal(Number(savedBotijao));
+    const savedHoras = localStorage.getItem('horasTrabalhoMensal');
+    if (savedHoras) setHorasTrabalhoMensal(Number(savedHoras));
+    const savedFixos = localStorage.getItem('custosFixos');
+    if (savedFixos) setCustosFixos(Number(savedFixos));
+
     carregarDados();
-    const savedConfig = localStorage.getItem('chef_precision_config');
-    if (savedConfig) {
-      setConfig(JSON.parse(savedConfig));
-    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('salarioDesejado', salarioDesejado.toString());
+    localStorage.setItem('custoFixoMensal', custoFixoMensal.toString());
+    localStorage.setItem('horasTrabalhoMensal', horasTrabalhoMensal.toString());
+    localStorage.setItem('custosFixos', custosFixos.toString());
+  }, [salarioDesejado, custoFixoMensal, horasTrabalhoMensal, custosFixos]);
 
   const carregarDados = async () => {
     const { data: dataInsumos } = await supabase.from('insumos').select('*').order('created_at', { ascending: false });
@@ -134,8 +154,7 @@ export default function AppCalculadora() {
     setIsSaving(false);
     
     if (error) {
-      console.error("Erro Supabase Insumos:", error);
-      alert("Erro ao salvar ingrediente. Verifique a conexão com o banco de dados.");
+      alert("Erro ao salvar ingrediente.");
       return null;
     }
 
@@ -196,7 +215,9 @@ export default function AppCalculadora() {
 
     const custoMaoDeObra = (novaReceita.minutos_preparo_ativo || 0) * valorMinutoTrabalho;
     const custoForno = (novaReceita.minutos_forno || 0) * custoFixoPorMinutoForno;
-    const custoTotalReceita = custoIngredientes + custoEmbalagens + custoMaoDeObra + custoForno;
+    const custoRateioFixo = (novaReceita.minutos_preparo_ativo || 0) * custoFixoPorMinutoTrabalho;
+    
+    const custoTotalReceita = custoIngredientes + custoEmbalagens + custoMaoDeObra + custoForno + custoRateioFixo;
     
     const rendimento = novaReceita.rendimento || 1;
     const custoUnitario = custoTotalReceita / rendimento;
@@ -204,7 +225,6 @@ export default function AppCalculadora() {
     const margem = (novaReceita.margem_lucro_desejada || 0) / 100;
     const taxaVenda = (novaReceita.taxa_venda || 0) / 100;
     
-    // Markup divisor inteligente: absorve a margem de lucro E a taxa da plataforma
     const denominador = 1 - margem - taxaVenda;
     const precoSugeridoUnitario = denominador > 0 ? (custoUnitario / denominador) : 0;
     
@@ -215,7 +235,7 @@ export default function AppCalculadora() {
     const lucroLiquidoTotal = lucroLiquidoUnitario * rendimento;
 
     return { 
-      custoIngredientesPuros, perdas, custoIngredientes, custoEmbalagens, custoMaoDeObra, custoForno, 
+      custoIngredientesPuros, perdas, custoIngredientes, custoEmbalagens, custoMaoDeObra, custoForno, custoRateioFixo,
       custoTotalReceita, custoUnitario, 
       precoSugeridoUnitario, lucroLiquidoUnitario,
       precoSugeridoTotal, lucroLiquidoTotal, descontoTaxa
@@ -255,8 +275,7 @@ export default function AppCalculadora() {
     setIsSaving(false);
 
     if (error) {
-      console.error("Erro Supabase Receitas:", error);
-      alert("Erro do banco de dados: " + (error.message || JSON.stringify(error)) + "\n\nSe o erro for sobre política de segurança (RLS), lembre-se de desativar o RLS da tabela 'receitas' no painel do Supabase.");
+      alert("Erro ao salvar: " + error.message);
     } else if (data) {
       if (novaReceita.id) {
         setReceitasSalvas(prev => prev.map(r => r.id === data.id ? data : r));
@@ -267,64 +286,29 @@ export default function AppCalculadora() {
     }
   };
 
-  const adicionarItemAReceita = (insumoId: string, quantidade: number) => {
-    setNovaReceita(prev => ({
-      ...prev,
-      itens: [...(prev.itens || []), { insumoId, quantidadeUsada: quantidade }]
-    }));
-  };
-
-  const removerItemDaReceita = (index: number) => {
-    setNovaReceita(prev => {
-      const novos = [...(prev.itens || [])];
-      novos.splice(index, 1);
-      return { ...prev, itens: novos };
-    });
-  };
-
-  const adicionarEmbalagemAReceita = (insumoId: string, quantidade: number) => {
-    setNovaReceita(prev => ({
-      ...prev,
-      embalagens: [...(prev.embalagens || []), { insumoId, quantidadeUsada: quantidade }]
-    }));
-  };
-
-  const removerEmbalagemDaReceita = (index: number) => {
-    setNovaReceita(prev => {
-      const novos = [...(prev.embalagens || [])];
-      novos.splice(index, 1);
-      return { ...prev, embalagens: novos };
-    });
-  };
-
-  const iniciarNovaPrecificacao = () => {
-    setNovaReceita({ nome: "", rendimento: 1, itens: [], embalagens: [], minutos_preparo_ativo: 0, minutos_forno: 0, margem_lucro_desejada: 30, taxa_venda: 0, margem_perda: 10 });
-    setView('builder');
-  };
-
   const excluirReceita = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Tem certeza que deseja excluir esta ficha técnica? Essa ação não pode ser desfeita.")) return;
+    if (!confirm("Tem certeza que deseja excluir?")) return;
     
     const { error } = await supabase.from('receitas').delete().eq('id', id);
     if (error) {
-      alert("Erro ao excluir ficha técnica: " + error.message);
+      alert("Erro ao excluir: " + error.message);
     } else {
       setReceitasSalvas(prev => prev.filter(r => r.id !== id));
     }
   };
 
-  const editarFichaTecnica = (receita: Receita) => {
-    setNovaReceita(receita);
-    setView('builder');
-  };
-
-  const res = view === 'builder' ? calcularResultados() : null;
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-neutral-50 font-sans selection:bg-amber-500 selection:text-black">
+      <style>{`
+        @media print {
+          body { background: white !important; color: black !important; }
+          ::-webkit-scrollbar { display: none; }
+        }
+      `}</style>
+      
       {/* HEADER */}
-      <header className="fixed top-0 left-0 right-0 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/5 z-50 px-6 py-4 flex justify-between items-center shadow-2xl shadow-black">
+      <header className="fixed top-0 left-0 right-0 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/5 z-50 px-6 py-4 flex justify-between items-center shadow-2xl shadow-black print:hidden">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-br from-amber-400 to-orange-600 p-2 rounded-xl shadow-lg shadow-orange-500/20">
             <ChefHat className="text-white" size={20} />
@@ -343,16 +327,16 @@ export default function AppCalculadora() {
         </div>
       </header>
 
-      {/* MODAL DO CONVERSOR DE MEDIDAS */}
+      {/* MODAL DO CONVERSOR */}
       <AnimatePresence>
         {showConverter && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Scale className="text-amber-500"/> Conversor Inteligente</h2>
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Scale className="text-amber-500"/> Conversor</h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-neutral-400 block mb-1">Qual o tipo de Ingrediente?</label>
+                  <label className="text-xs text-neutral-400 block mb-1">Tipo de Ingrediente</label>
                   <select value={convTipo} onChange={e => { setConvTipo(e.target.value); setConvMedida(e.target.value === 'quilo' ? 'kg' : e.target.value === 'litro' ? 'litro' : 'xicara'); }} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500">
                     {Object.entries(CONVERSOES).map(([key, obj]) => (
                       <option key={key} value={key}>{obj.nome}</option>
@@ -364,22 +348,18 @@ export default function AppCalculadora() {
                   <div className="flex-1">
                     <label className="text-xs text-neutral-400 block mb-1">Medida Base</label>
                     <select value={convMedida} onChange={e => setConvMedida(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500">
-                      {convTipo === 'quilo' ? (
-                        <option value="kg">Quilogramas (Kg)</option>
-                      ) : convTipo === 'litro' ? (
-                        <option value="litro">Litros (L)</option>
-                      ) : (
+                      {convTipo === 'quilo' ? <option value="kg">Quilogramas (Kg)</option> : convTipo === 'litro' ? <option value="litro">Litros (L)</option> : (
                         <>
-                          <option value="xicara">Xícara de Chá</option>
-                          <option value="colher_sopa">Colher de Sopa</option>
-                          <option value="colher_cha">Colher de Chá</option>
+                          <option value="xicara">Xícara</option>
+                          <option value="colher_sopa">Colher Sopa</option>
+                          <option value="colher_cha">Colher Chá</option>
                         </>
                       )}
                     </select>
                   </div>
                   <div className="w-24">
                     <label className="text-xs text-neutral-400 block mb-1">Qtd.</label>
-                    <input type="number" step="0.5" value={convQtd} onChange={e => setConvQtd(e.target.value)} placeholder="Ex: 2" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
+                    <input type="number" step="0.5" value={convQtd} onChange={e => setConvQtd(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
                   </div>
                 </div>
 
@@ -390,90 +370,23 @@ export default function AppCalculadora() {
               </div>
 
               <div className="mt-8 flex gap-3">
-                <button onClick={() => setShowConverter(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors font-medium">Cancelar</button>
+                <button onClick={() => setShowConverter(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors">Cancelar</button>
                 <button onClick={() => {
                   const res = calcularConversao();
                   if (res > 0) setTempQuantidadeUsada(res.toString());
                   setShowConverter(false);
-                  setConvQtd('');
-                }} className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Usar Valor</button>
+                }} className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl font-bold">Usar Valor</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* MODAL EDITAR INSUMO */}
-      <AnimatePresence>
-        {editInsumo && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Edit2 className="text-orange-500"/> Editar Ingrediente</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-neutral-400 block mb-1">Nome do Ingrediente</label>
-                  <input type="text" value={editInsumo.nome} onChange={e => setEditInsumo({...editInsumo, nome: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500" />
-                </div>
-                
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="text-xs text-neutral-400 block mb-1">Preço Pago (R$)</label>
-                    <input type="number" step="0.01" value={editInsumo.preco_embalagem} onChange={e => setEditInsumo({...editInsumo, preco_embalagem: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500" />
-                  </div>
-                  <div className="w-24">
-                    <label className="text-xs text-neutral-400 block mb-1">Tamanho</label>
-                    <input type="number" value={editInsumo.tamanho_embalagem} onChange={e => setEditInsumo({...editInsumo, tamanho_embalagem: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500" />
-                  </div>
-                  <div className="w-20">
-                    <label className="text-xs text-neutral-400 block mb-1">Medida</label>
-                    <select value={editInsumo.unidade_medida || 'g'} onChange={e => setEditInsumo({...editInsumo, unidade_medida: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500">
-                      <option value="g">g</option>
-                      <option value="ml">ml</option>
-                      <option value="un">un</option>
-                    </select>
-                  </div>
-                  <div className="w-28">
-                    <label className="text-xs text-neutral-400 block mb-1">Tipo</label>
-                    <select value={editInsumo.categoria || 'ingrediente'} onChange={e => setEditInsumo({...editInsumo, categoria: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-orange-500">
-                      <option value="ingrediente">Comida</option>
-                      <option value="embalagem">Embalagem</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 flex gap-3">
-                <button onClick={() => setEditInsumo(null)} className="flex-1 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl transition-colors font-medium">Cancelar</button>
-                <button onClick={atualizarInsumo} disabled={isUpdatingInsumo} className="flex-1 bg-orange-500 hover:bg-orange-400 text-black py-3 rounded-xl transition-colors font-bold disabled:opacity-50 flex items-center justify-center gap-2">
-                  {isUpdatingInsumo ? 'Salvando...' : 'Salvar Preço'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL DE CONFIGURAÇÕES */}
+      {/* MODAL CONFIGURAÇÕES */}
       <AnimatePresence>
         {showConfig && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-neutral-900 border border-white/10 p-6 rounded-3xl w-full max-w-md shadow-2xl">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Settings className="text-amber-500"/> Configurações de Custos</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-neutral-400 block mb-1">Sua Meta Salarial (R$ por mês)</label>
-                  <input type="number" value={config.metaSalarial} onChange={e => setConfig({...config, metaSalarial: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
-                </div>
-                <div>
-                  <label className="text-xs text-neutral-400 block mb-1">Horas Trabalhadas (por mês)</label>
-                  <input type="number" value={config.horasMensais} onChange={e => setConfig({...config, horasMensais: parseFloat(e.target.value) || 0})} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500" />
-                </div>
-                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                  <label className="text-xs text-neutral-400 block mb-3 font-bold text-amber-500">Cálculo Automático do Gás</label>
-                  
-                  <div className="flex gap-3 mb-3">
                     <div className="flex-1">
                       <label className="text-[10px] text-neutral-500 block mb-1">Preço do Botijão cheio (R$)</label>
                       <input type="number" placeholder="Ex: 120" onChange={e => {
@@ -503,7 +416,128 @@ export default function AppCalculadora() {
         )}
       </AnimatePresence>
 
-      <main className="pt-24 pb-10 px-6 max-w-7xl mx-auto min-h-screen">
+      {/* MODAL DE VISUALIZAÇÃO DE RECEITA (COM IMPRESSÃO E ESCALA) */}
+      <AnimatePresence>
+        {viewingReceita && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 print:bg-white print:p-0 print:absolute print:inset-0 print:block">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-neutral-900 border border-white/10 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden print:border-none print:shadow-none print:w-full print:max-h-full print:bg-white print:text-black">
+              
+              {/* CABEÇALHO DO MODAL - NÃO IMPRIME */}
+              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/50 print:hidden">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <ChefHat className="text-amber-500"/> Ficha Técnica: {viewingReceita.nome}
+                </h2>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => {
+                     setNovaReceita(viewingReceita);
+                     setView('builder');
+                     setViewingReceita(null);
+                  }} className="bg-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black px-4 py-2 rounded-xl transition-colors font-bold flex items-center gap-2">
+                    <Edit2 size={16}/> Editar Ficha
+                  </button>
+                  <button onClick={() => window.print()} className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors font-medium flex items-center gap-2">
+                    <Printer size={16}/> Imprimir
+                  </button>
+                  <button onClick={() => setViewingReceita(null)} className="text-neutral-500 hover:text-white p-2">
+                    <X size={24}/>
+                  </button>
+                </div>
+              </div>
+
+              {/* CONTEÚDO SCROLLÁVEL */}
+              <div className="p-6 overflow-y-auto print:overflow-visible print:p-4">
+                
+                {/* CONTROLE DE ESCALA - NÃO IMPRIME */}
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl mb-8 flex items-center gap-4 print:hidden">
+                  <div className="bg-amber-500 text-black p-3 rounded-xl"><Calculator size={24}/></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-amber-500 uppercase tracking-wider">Modo Festa (Calculadora de Escala)</p>
+                    <p className="text-xs text-neutral-400">Quer fazer mais porções? Aumente o fator multiplicador abaixo para recalcular todas as compras necessárias.</p>
+                  </div>
+                  <div className="flex items-center gap-3 bg-black/50 p-2 rounded-xl border border-white/10">
+                    <button onClick={() => setEscala(e => Math.max(1, e - 1))} className="p-2 hover:bg-white/10 rounded-lg"><Minus size={16}/></button>
+                    <span className="font-black text-xl w-12 text-center text-white">x{escala}</span>
+                    <button onClick={() => setEscala(e => e + 1)} className="p-2 hover:bg-white/10 rounded-lg"><Plus size={16}/></button>
+                  </div>
+                </div>
+
+                {/* FICHA PARA IMPRESSÃO */}
+                <div className="print:text-black space-y-8">
+                  <div className="text-center border-b border-neutral-800 pb-6 print:border-neutral-300">
+                    <h1 className="text-3xl font-black text-white print:text-black mb-2">{viewingReceita.nome}</h1>
+                    <p className="text-neutral-400 print:text-neutral-600 text-lg">
+                      Rendimento original: <span className="font-bold text-white print:text-black">{viewingReceita.rendimento} porções</span>
+                      {escala > 1 && <span className="text-amber-500 font-bold ml-2">➡️ Rendimento Calculado: {(viewingReceita.rendimento || 1) * escala} porções</span>}
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {/* INGREDIENTES */}
+                    <div>
+                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white print:text-black"><ShoppingBag className="text-orange-500 print:text-black"/> Ingredientes Necessários</h3>
+                      <ul className="space-y-3">
+                        {viewingReceita.itens?.map((item, idx) => {
+                          const insumo = insumos.find(i => i.id === item.insumoId);
+                          return (
+                            <li key={idx} className="flex justify-between items-end border-b border-neutral-800 print:border-neutral-200 pb-2">
+                              <span className="text-neutral-300 print:text-neutral-800">{insumo?.nome}</span>
+                              <span className="font-bold text-white print:text-black">{(item.quantidadeUsada * escala).toLocaleString('pt-BR')} {insumo?.unidade_medida || 'g'}</span>
+                            </li>
+                          );
+                        })}
+                        {(!viewingReceita.itens || viewingReceita.itens.length === 0) && (
+                          <li className="text-neutral-500">Nenhum ingrediente.</li>
+                        )}
+                      </ul>
+                    </div>
+
+                    {/* EMBALAGENS */}
+                    <div>
+                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white print:text-black"><Package className="text-pink-500 print:text-black"/> Embalagens Necessárias</h3>
+                      <ul className="space-y-3">
+                        {viewingReceita.embalagens?.map((item, idx) => {
+                          const insumo = insumos.find(i => i.id === item.insumoId);
+                          return (
+                            <li key={idx} className="flex justify-between items-end border-b border-neutral-800 print:border-neutral-200 pb-2">
+                              <span className="text-neutral-300 print:text-neutral-800">{insumo?.nome}</span>
+                              <span className="font-bold text-white print:text-black">{(item.quantidadeUsada * escala).toLocaleString('pt-BR')} {insumo?.unidade_medida || 'un'}</span>
+                            </li>
+                          );
+                        })}
+                        {(!viewingReceita.embalagens || viewingReceita.embalagens.length === 0) && (
+                          <li className="text-neutral-500">Nenhuma embalagem.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* CUSTOS GERAIS PARA IMPRESSÃO */}
+                  <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl print:bg-neutral-100 print:border-neutral-300 mt-8">
+                    <h3 className="font-bold text-lg mb-4 text-white print:text-black">Resumo Financeiro (Para 1 Lote Original)</h3>
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div>
+                        <p className="text-sm text-neutral-500 print:text-neutral-600 mb-1">Custo Total de Produção</p>
+                        <p className="text-xl font-bold text-red-400 print:text-red-700">R$ {((viewingReceita.preco_sugerido || 0) - (viewingReceita.lucro_liquido || 0)).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-neutral-500 print:text-neutral-600 mb-1">Preço Sugerido (Total)</p>
+                        <p className="text-xl font-bold text-amber-500 print:text-black">R$ {viewingReceita.preco_sugerido?.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-neutral-500 print:text-neutral-600 mb-1">Lucro Líquido Limpo</p>
+                        <p className="text-xl font-bold text-green-400 print:text-green-700">R$ {viewingReceita.lucro_liquido?.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <main className="pt-24 pb-10 px-6 max-w-7xl mx-auto min-h-screen print:hidden">
         <AnimatePresence mode="wait">
           
           {/* DASHBOARD VIEW */}
@@ -529,7 +563,7 @@ export default function AppCalculadora() {
                   ) : (
                     <div className="space-y-3">
                       {receitasSalvas.map(r => (
-                        <div key={r.id} onClick={() => editarFichaTecnica(r)} className="group cursor-pointer relative overflow-hidden flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 hover:border-amber-500/30 transition-all hover:bg-white/5">
+                        <div key={r.id} onClick={() => { setViewingReceita(r); setEscala(1); }} className="group cursor-pointer relative overflow-hidden flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 hover:border-amber-500/30 transition-all hover:bg-white/5">
                           <div className="z-10">
                             <p className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">{r.nome}</p>
                             <p className="text-xs text-neutral-400 mt-1">Lote R$ {r.preco_sugerido?.toFixed(2)}</p>
@@ -539,7 +573,7 @@ export default function AppCalculadora() {
                               <p className="text-xs text-green-400 font-bold bg-green-400/10 px-2 py-1 rounded-md inline-block border border-green-400/20 mb-1 block w-fit ml-auto">
                                 + R$ {r.lucro_liquido?.toFixed(2)}
                               </p>
-                              <span className="text-[10px] text-neutral-500 group-hover:text-amber-500 transition-colors block">Clique para editar</span>
+                              <span className="text-[10px] text-neutral-500 group-hover:text-amber-500 transition-colors block">Clique para visualizar</span>
                             </div>
                             <button onClick={(e) => excluirReceita(r.id, e)} className="p-2 text-neutral-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Excluir ficha">
                               <Trash2 size={18} />
@@ -864,11 +898,17 @@ export default function AppCalculadora() {
                       <span className="text-white">R$ {res.custoEmbalagens.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-neutral-400">
-                      <span>Mão de Obra</span>
+                      <span>Mão de Obra (Salário)</span>
                       <span className="text-white">R$ {res.custoMaoDeObra.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-neutral-400">
-                      <span>Gás / Energia</span>
+                      <span title="Aluguel, Conta de Água, Luz, MEI..." className="cursor-help border-b border-dashed border-neutral-600">
+                        Custos Fixos Rateados
+                      </span>
+                      <span className="text-white">R$ {res.custoRateioFixo.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-neutral-400">
+                      <span>Gás (Forno/Fogão)</span>
                       <span className="text-white">R$ {res.custoForno.toFixed(2)}</span>
                     </div>
                     
