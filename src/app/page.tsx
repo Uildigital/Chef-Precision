@@ -52,19 +52,31 @@ export default function VSLSalesPage() {
             O único sistema inteligente do Brasil que calcula ingredientes, gás, aluguel e a sua margem de lucro em menos de 1 minuto pelo celular.
           </p>
 
-          {/* VSL PLACEHOLDER (Espaço para o Vídeo) */}
-          <div className="w-full max-w-3xl aspect-video bg-neutral-900 border border-white/10 rounded-3xl overflow-hidden relative shadow-2xl mb-10 group cursor-pointer hover:border-amber-500/50 transition-colors flex flex-col items-center justify-center">
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556910103-1c02745a8e0f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 group-hover:scale-105 transition-transform duration-700"></div>
-            <PlayCircle size={80} className="text-amber-500 mb-4 z-10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
-            <p className="z-10 font-bold text-white tracking-widest uppercase text-sm">Assista ao Vídeo Acima</p>
-          </div>
-
-          <a href={KIWIFY_CHECKOUT_URL} className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-xl px-10 py-5 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/20 w-full md:w-auto">
+          <a href={KIWIFY_CHECKOUT_URL} className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-xl px-10 py-5 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/20 w-full md:w-auto mb-16">
             Quero Acessar o Sistema <ArrowRight size={24} />
           </a>
-          <p className="mt-4 text-xs text-neutral-500">
-            Liberação imediata no seu e-mail após a compra.
-          </p>
+
+          {/* TSL (Text Sales Letter) Carta de Vendas */}
+          <div className="w-full max-w-3xl bg-neutral-900/50 border border-white/10 rounded-3xl p-8 md:p-12 text-left shadow-2xl relative mx-auto">
+            <h3 className="text-2xl font-black text-white mb-6">De um Confeiteiro para você...</h3>
+            <div className="space-y-4 text-neutral-300 text-lg leading-relaxed">
+              <p>
+                Se você trabalha vendendo doces e bolos, existe <strong>90% de chance de você estar pagando para trabalhar neste exato momento</strong>. E a culpa não é do seu produto. A culpa é da sua precificação.
+              </p>
+              <p>
+                Quantas vezes você virou a madrugada assando bolo, entregou as encomendas... e na segunda-feira o dinheiro simplesmente sumiu?
+              </p>
+              <p>
+                A maioria morre de medo de cobrar mais caro, então tenta copiar o preço da concorrente. Ou pior: <strong>multiplica o valor dos ingredientes por 3</strong> e acha que está tendo lucro. 
+              </p>
+              <p>
+                Sabe por que o dinheiro some? Porque a conta 'vezes 3' <strong className="text-red-400">não calcula o custo invisível</strong>. Onde está o valor do gás ligado por 40 minutos? A energia da batedeira? E, o mais importante: <strong>o seu salário?</strong>
+              </p>
+              <p>
+                Foi para acabar com o trabalho de graça (e dar um fim às planilhas difíceis de Excel) que nós criamos o <strong>Precifica Chef</strong>.
+              </p>
+            </div>
+          </div>
         </motion.div>
       </section>
 
