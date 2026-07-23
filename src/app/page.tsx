@@ -46,6 +46,12 @@ export default function AppCalculadora() {
   
   const [supabase] = useState(() => createClient());
 
+  const [session, setSession] = useState<any>(null);
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   // Configurações Globais
   const [horasTrabalhoMensal, setHorasTrabalhoMensal] = useState(160);
   const [salarioDesejado, setSalarioDesejado] = useState(2500);
@@ -120,8 +126,22 @@ export default function AppCalculadora() {
     const savedFixos = localStorage.getItem('custosFixos');
     if (savedFixos) setCustosFixos(Number(savedFixos));
 
-    carregarDados();
-  }, []);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  useEffect(() => {
+    if (session) {
+      carregarDados();
+    }
+  }, [session]);
 
   useEffect(() => {
     localStorage.setItem('salarioDesejado', salarioDesejado.toString());
@@ -129,6 +149,27 @@ export default function AppCalculadora() {
     localStorage.setItem('horasTrabalhoMensal', horasTrabalhoMensal.toString());
     localStorage.setItem('custosFixos', custosFixos.toString());
   }, [salarioDesejado, custoFixoMensal, horasTrabalhoMensal, custosFixos]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert("Erro ao entrar: " + error.message);
+    setAuthLoading(false);
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) alert("Erro: " + error.message);
+    else alert("Conta criada! Você já pode fazer o login.");
+    setAuthLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   const carregarDados = async () => {
     const { data: dataInsumos } = await supabase.from('insumos').select('*').order('created_at', { ascending: false });
@@ -335,6 +376,45 @@ export default function AppCalculadora() {
 
   const res = view === 'builder' ? calcularResultados() : null;
 
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 text-white selection:bg-amber-500 selection:text-black">
+        <div className="w-full max-w-md bg-neutral-900 border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-amber-500/20 blur-[80px] pointer-events-none rounded-full" />
+          
+          <div className="flex flex-col items-center justify-center mb-10 z-10 relative">
+            <div className="bg-gradient-to-br from-amber-400 to-orange-600 p-4 rounded-2xl shadow-lg shadow-orange-500/20 mb-4">
+              <ChefHat className="text-white" size={32} />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-center">Chef Precision</h1>
+            <p className="text-neutral-400 text-sm mt-2 text-center">Faça login para acessar suas fichas técnicas.</p>
+          </div>
+
+          <form onSubmit={authView === 'login' ? handleLogin : handleRegister} className="space-y-4 z-10 relative">
+            <div>
+              <label className="text-xs text-neutral-400 block mb-1 uppercase tracking-wider font-bold">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-amber-500 transition-colors" placeholder="seu@email.com" />
+            </div>
+            <div>
+              <label className="text-xs text-neutral-400 block mb-1 uppercase tracking-wider font-bold">Senha</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-amber-500 transition-colors" placeholder="••••••••" />
+            </div>
+
+            <button type="submit" disabled={authLoading} className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black py-4 rounded-xl mt-6 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50">
+              {authLoading ? 'Carregando...' : authView === 'login' ? 'Entrar na Plataforma' : 'Criar minha Conta'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center z-10 relative border-t border-white/5 pt-6">
+            <button type="button" onClick={() => setAuthView(authView === 'login' ? 'register' : 'login')} className="text-sm text-neutral-400 hover:text-amber-500 transition-colors">
+              {authView === 'login' ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Faça login'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-neutral-50 font-sans selection:bg-amber-500 selection:text-black">
       <style>{`
@@ -446,8 +526,9 @@ export default function AppCalculadora() {
                 </div>
               </div>
 
-              <div className="mt-8 flex gap-3">
+              <div className="mt-8 flex flex-col gap-3">
                 <button onClick={() => setShowConfig(false)} className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Concluído</button>
+                <button onClick={handleLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl transition-colors font-medium border border-red-500/20">Sair da Conta</button>
               </div>
             </motion.div>
           </div>
