@@ -227,11 +227,8 @@ export default function VSLSalesPage() {
       {/* 5.5. AUTOR (Quem Sou Eu) */}
       <section className="py-20 px-6 bg-black border-y border-white/5">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-10">
-          <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-neutral-900 border-4 border-amber-500/20 shrink-0 overflow-hidden relative">
-             {/* Você pode trocar essa div por uma tag <img /> com a sua foto! */}
-             <div className="absolute inset-0 flex items-center justify-center text-neutral-700 text-center text-xs p-4">
-                [Sua Foto Aqui]
-             </div>
+          <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-neutral-900 border-4 border-amber-500/20 shrink-0 overflow-hidden relative shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+             <img src="/images/avatar.png" alt="Uilton - Criador" className="w-full h-full object-cover" />
           </div>
           <div>
             <span className="text-amber-500 font-bold uppercase tracking-widest text-xs mb-2 block">Muito Prazer, Eu Sou...</span>
