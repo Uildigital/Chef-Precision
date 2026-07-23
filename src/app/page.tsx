@@ -62,7 +62,7 @@ export default function VSLSalesPage() {
             
             <div className="w-full h-48 md:h-72 bg-neutral-800 rounded-2xl overflow-hidden mb-8 border border-white/5 shadow-inner">
               <img 
-                src="https://images.unsplash.com/photo-1556910103-1c02745a8e0f?q=80&w=2070&auto=format&fit=crop" 
+                src="/images/confeiteira.png" 
                 alt="Confeiteira trabalhando na cozinha" 
                 className="w-full h-full object-cover opacity-90"
               />
