@@ -1,121 +1,214 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ChefHat, ArrowRight, CheckCircle2, TrendingUp, Calculator, PieChart, Star } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChefHat, ArrowRight, CheckCircle2, TrendingUp, Calculator, PieChart, ShieldCheck, XCircle, PlayCircle } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
-export default function LandingPage() {
-  // TODO: O usuário deve substituir este link pelo link real do checkout da Kiwify
-  const KIWIFY_CHECKOUT_URL = "#"; 
+export default function VSLSalesPage() {
+  const KIWIFY_CHECKOUT_URL = "#"; // COLOQUE O LINK DE CHECKOUT AQUI
+  const [showSticky, setShowSticky] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Mostra o botão flutuante depois de descer 500px (quando passa a Hero)
+      setShowSticky(window.scrollY > 500);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-neutral-50 font-sans selection:bg-amber-500 selection:text-black overflow-x-hidden">
+    <div className="min-h-screen bg-[#070707] text-neutral-50 font-sans selection:bg-amber-500 selection:text-black overflow-x-hidden pb-24 md:pb-0">
       
       {/* NAVBAR */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#070707]/90 backdrop-blur-xl border-b border-white/5 px-6 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-amber-400 to-orange-600 p-2 rounded-xl shadow-lg shadow-orange-500/20">
-            <ChefHat className="text-white" size={20} />
+          <div className="bg-gradient-to-br from-amber-400 to-orange-600 p-1.5 rounded-lg shadow-lg shadow-orange-500/20">
+            <ChefHat className="text-white" size={18} />
           </div>
-          <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">
+          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">
             Precifica Chef
           </span>
         </div>
-        <Link href="/dashboard" className="text-sm font-bold text-neutral-400 hover:text-white px-5 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors">
-          Entrar no Sistema
+        <Link href="/dashboard" className="text-xs font-bold text-neutral-400 hover:text-white px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors">
+          Já sou aluno (Entrar)
         </Link>
       </nav>
 
-      {/* HERO SECTION */}
-      <section className="pt-32 pb-20 px-6 relative max-w-5xl mx-auto flex flex-col items-center text-center z-10">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/20 blur-[120px] pointer-events-none rounded-full -z-10" />
+      {/* 1. HERO & VSL SECTION */}
+      <section className="pt-28 pb-16 px-6 relative max-w-4xl mx-auto flex flex-col items-center text-center z-10">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[500px] bg-amber-500/10 blur-[120px] pointer-events-none rounded-full -z-10" />
         
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <span className="inline-block py-1 px-3 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold tracking-widest uppercase mb-6">
-            O Fim do Prejuízo na Confeitaria
+          <span className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold tracking-widest uppercase mb-6 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span> ATENÇÃO CONFEITEIRAS
           </span>
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 leading-tight">
-            Descubra o Lucro Exato de <br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-orange-500">Cada Receita em Segundos.</span>
+          
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-6 leading-[1.1]">
+            Descubra o Lucro Exato de Cada Receita e <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-orange-500 underline decoration-amber-500/30 underline-offset-8">Pare de Pagar Para Trabalhar.</span>
           </h1>
-          <p className="text-lg md:text-xl text-neutral-400 mb-10 max-w-2xl mx-auto">
-            O primeiro software de gestão feito para confeiteiras. Calcule ingredientes, gás, aluguel e margem de lucro de forma automática, tudo pelo celular.
+          <p className="text-lg text-neutral-400 mb-10 max-w-2xl mx-auto">
+            O único sistema inteligente do Brasil que calcula ingredientes, gás, aluguel e a sua margem de lucro em menos de 1 minuto pelo celular.
           </p>
 
-          <a href={KIWIFY_CHECKOUT_URL} className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-lg px-8 py-4 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/20">
-            Quero Lucrar Mais Agora <ArrowRight size={20} />
+          {/* VSL PLACEHOLDER (Espaço para o Vídeo) */}
+          <div className="w-full max-w-3xl aspect-video bg-neutral-900 border border-white/10 rounded-3xl overflow-hidden relative shadow-2xl mb-10 group cursor-pointer hover:border-amber-500/50 transition-colors flex flex-col items-center justify-center">
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556910103-1c02745a8e0f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 group-hover:scale-105 transition-transform duration-700"></div>
+            <PlayCircle size={80} className="text-amber-500 mb-4 z-10 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+            <p className="z-10 font-bold text-white tracking-widest uppercase text-sm">Assista ao Vídeo Acima</p>
+          </div>
+
+          <a href={KIWIFY_CHECKOUT_URL} className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-xl px-10 py-5 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/20 w-full md:w-auto">
+            Quero Acessar o Sistema <ArrowRight size={24} />
           </a>
-          <p className="mt-4 text-xs text-neutral-500 flex items-center justify-center gap-1">
-            <CheckCircle2 size={12} className="text-green-500"/> Acesso Vitalício. Pagamento Único.
+          <p className="mt-4 text-xs text-neutral-500">
+            Liberação imediata no seu e-mail após a compra.
           </p>
         </motion.div>
       </section>
 
-      {/* SOCIAL PROOF / BENEFITS */}
-      <section className="py-20 px-6 bg-black/50 border-y border-white/5">
+      {/* 2. PAIN SECTION (Isso soa familiar?) */}
+      <section className="py-20 px-6 bg-[#0a0a0a] border-y border-white/5 relative">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-black text-center mb-12">Me responda com sinceridade... <br/><span className="text-amber-500">Isso acontece com você?</span></h2>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {[
+              "Trabalha o fim de semana inteiro e na segunda-feira o dinheiro some.",
+              "Tem medo de cobrar o preço justo e os clientes acharem 'careiro'.",
+              "Não faz ideia de quanto gasta de gás, energia e detergente num bolo.",
+              "Recebeu uma encomenda enorme e travou na hora de calcular as medidas."
+            ].map((pain, i) => (
+              <div key={i} className="flex gap-4 items-start bg-neutral-900/50 border border-red-500/10 p-6 rounded-2xl">
+                <XCircle className="text-red-500 shrink-0 mt-1" />
+                <p className="text-neutral-300 font-medium">{pain}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-center text-neutral-400 mt-12 max-w-2xl mx-auto">
+            Se você marcou "Sim" para qualquer uma das opções, o problema não está no seu produto (seus doces são ótimos). <strong className="text-white">O problema está na precificação "de olho".</strong> O Precifica Chef foi criado para acabar com isso hoje.
+          </p>
+        </div>
+      </section>
+
+      {/* 3. BENEFITS (Como Funciona) */}
+      <section className="py-24 px-6 relative">
+        <div className="max-w-5xl mx-auto text-center mb-16">
+          <h2 className="text-3xl md:text-5xl font-black mb-4">Um verdadeiro "Gerente Financeiro" <br/>na palma da sua mão.</h2>
+          <p className="text-neutral-400">Esqueça o Excel. Nosso sistema faz o trabalho sujo por você.</p>
+        </div>
+
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-8">
-          <div className="bg-neutral-900 border border-white/10 p-8 rounded-3xl">
-            <div className="bg-amber-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-6">
-              <Calculator className="text-amber-500" />
+          <div className="bg-neutral-900 border border-white/10 p-8 rounded-3xl hover:border-amber-500/30 transition-colors">
+            <div className="bg-amber-500/10 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+              <Calculator className="text-amber-500" size={28} />
             </div>
-            <h3 className="text-xl font-bold mb-3">Custos Invisíveis</h3>
-            <p className="text-neutral-400 text-sm">O sistema calcula o quanto você gasta de gás, luz e aluguel em cada bolo. Nunca mais pague para trabalhar.</p>
+            <h3 className="text-2xl font-bold mb-3">Custos Ocultos Revelados</h3>
+            <p className="text-neutral-400">Ele embute no preço do doce a sua conta de luz, o aluguel e até a embalagem de entrega. Você nunca mais pagará para trabalhar.</p>
           </div>
-          <div className="bg-neutral-900 border border-white/10 p-8 rounded-3xl">
-            <div className="bg-orange-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-6">
-              <TrendingUp className="text-orange-500" />
+          <div className="bg-neutral-900 border border-white/10 p-8 rounded-3xl hover:border-orange-500/30 transition-colors">
+            <div className="bg-orange-500/10 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+              <TrendingUp className="text-orange-500" size={28} />
             </div>
-            <h3 className="text-xl font-bold mb-3">Escala Automática</h3>
-            <p className="text-neutral-400 text-sm">Recebeu uma encomenda de 500 docinhos? Digite "500" e o sistema recalcula toda a lista de compras na hora.</p>
+            <h3 className="text-2xl font-bold mb-3">Modo Escala Automático</h3>
+            <p className="text-neutral-400">Vai fazer 1.000 brigadeiros em vez de 50? Digite "1000" e o sistema recalcula toda a lista de compras no mercado de forma instantânea.</p>
           </div>
-          <div className="bg-neutral-900 border border-white/10 p-8 rounded-3xl">
-            <div className="bg-green-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-6">
-              <PieChart className="text-green-500" />
+          <div className="bg-neutral-900 border border-white/10 p-8 rounded-3xl hover:border-green-500/30 transition-colors">
+            <div className="bg-green-500/10 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+              <PieChart className="text-green-500" size={28} />
             </div>
-            <h3 className="text-xl font-bold mb-3">Lucro Previsível</h3>
-            <p className="text-neutral-400 text-sm">Veja exatamente qual é a sua margem de lucro por porção. Defina seu salário e bata suas metas financeiras.</p>
+            <h3 className="text-2xl font-bold mb-3">Proteção de Salário</h3>
+            <p className="text-neutral-400">Defina o salário que você quer tirar no mês, e a ferramenta vai dizer exatamente qual a porcentagem adicionar em cada receita para bater a meta.</p>
           </div>
         </div>
       </section>
 
-      {/* BONUS SECTION */}
-      <section className="py-24 px-6 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[500px] bg-orange-500/5 blur-[100px] pointer-events-none -z-10" />
-        <div className="max-w-4xl mx-auto bg-gradient-to-br from-neutral-900 to-black border border-amber-500/30 rounded-[3rem] p-8 md:p-12 text-center relative shadow-2xl shadow-amber-500/10">
+      {/* 4. OFFER & STACKING (Bônus) */}
+      <section className="py-24 px-6 relative overflow-hidden bg-black border-y border-white/5">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-orange-500/5 blur-[120px] pointer-events-none -z-10" />
+        
+        <div className="max-w-4xl mx-auto bg-neutral-900 border border-amber-500/30 rounded-[3rem] p-8 md:p-14 text-center relative shadow-2xl shadow-amber-500/10">
           
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-sm uppercase tracking-widest px-6 py-2 rounded-full shadow-lg whitespace-nowrap">
+          <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-black font-black text-sm uppercase tracking-widest px-6 py-2 rounded-full shadow-lg whitespace-nowrap">
             🎁 Bônus Exclusivo de Lançamento
           </div>
 
           <h2 className="text-3xl md:text-5xl font-black mb-6 mt-6">
-            E-book Premium:<br/> <span className="text-amber-500">Receitas Juninas</span>
+            Compre Hoje e Leve: <br/> <span className="text-amber-500">O E-book Receitas Juninas de Ouro</span>
           </h2>
           <p className="text-neutral-400 text-lg mb-8 max-w-2xl mx-auto">
-            Comprando o sistema hoje, você leva totalmente de graça o nosso aclamado livro digital com as receitas mais lucrativas da época junina. Perfeito para você já estrear a calculadora faturando!
+            Além do software completo vitalício, você ganhará acesso imediato ao nosso E-book fechado com as receitas que mais geram lucro na sazonalidade. Só esse e-book custa R$ 97, mas hoje é seu de graça.
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-10">
-            <div className="bg-black/50 border border-white/10 px-6 py-4 rounded-2xl flex flex-col items-center min-w-[200px]">
-              <span className="text-neutral-500 line-through text-sm">Valor Normal: R$ 97,00</span>
-              <span className="text-2xl font-black text-white">HOJE: R$ 47,00</span>
+            <div className="bg-black/80 border border-white/10 px-8 py-6 rounded-3xl flex flex-col items-center">
+              <p className="text-neutral-400 font-medium mb-2">Resumo da sua Oferta:</p>
+              <ul className="text-left text-sm text-neutral-300 space-y-2 mb-4">
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-green-500"/> Sistema Precifica Chef <span className="text-neutral-500 line-through ml-auto">R$ 147,00</span></li>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-green-500"/> E-book Receitas Juninas <span className="text-neutral-500 line-through ml-auto">R$ 97,00</span></li>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-green-500"/> Atualizações Futuras <span className="text-neutral-500 line-through ml-auto">Inestimável</span></li>
+              </ul>
+              <div className="border-t border-white/10 w-full pt-4 mt-2">
+                <p className="text-neutral-500 line-through text-sm">Valor Total: R$ 244,00</p>
+                <p className="text-3xl font-black text-white mt-1">Apenas R$ 47,00 <span className="text-sm font-normal text-neutral-400">à vista</span></p>
+              </div>
             </div>
           </div>
 
-          <a href={KIWIFY_CHECKOUT_URL} className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-lg px-10 py-5 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/20 w-full md:w-auto justify-center">
-            Garantir Sistema + Bônus <ArrowRight size={20} />
+          <a href={KIWIFY_CHECKOUT_URL} className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-xl px-12 py-5 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/20 w-full md:w-auto justify-center">
+            Sim, Quero a Calculadora + Bônus <ArrowRight size={20} />
           </a>
         </div>
       </section>
 
+      {/* 5. GUARANTEE */}
+      <section className="py-20 px-6">
+        <div className="max-w-3xl mx-auto flex flex-col md:flex-row items-center gap-8 text-center md:text-left bg-neutral-900 border border-white/5 p-8 md:p-10 rounded-[2rem]">
+          <div className="bg-amber-500/10 p-6 rounded-full shrink-0">
+            <ShieldCheck size={64} className="text-amber-500" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-black mb-3">Risco Zero: 7 Dias de Garantia</h3>
+            <p className="text-neutral-400">
+              Estamos tão confiantes de que o Precifica Chef vai revolucionar o financeiro do seu negócio que assumimos todo o risco. Compre agora, use o sistema. Se em até 7 dias você achar que ele não facilita a sua vida, devolvemos 100% do seu dinheiro com apenas um clique.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-12 text-center text-neutral-500 text-sm">
+      <footer className="border-t border-white/5 py-16 px-6 text-center text-neutral-500 text-sm">
         <div className="flex items-center justify-center gap-2 mb-4">
           <ChefHat size={20} className="text-neutral-600" />
           <span className="font-bold text-neutral-400">Precifica Chef</span>
         </div>
         <p>© 2026 Precifica Chef. Todos os direitos reservados.</p>
-        <p className="mt-2 text-xs">Esta ferramenta é um SaaS desenvolvido para empreendedores culinários.</p>
+        <p className="mt-2 text-xs">Esta ferramenta é um software como serviço (SaaS) independente.</p>
+        <div className="mt-8 flex justify-center gap-6 text-xs">
+          <a href="#" className="hover:text-white transition-colors">Termos de Uso</a>
+          <a href="#" className="hover:text-white transition-colors">Política de Privacidade</a>
+          <a href="#" className="hover:text-white transition-colors">Contato</a>
+        </div>
       </footer>
+
+      {/* 6. STICKY CTA (Botão Flutuante Mobile) */}
+      <AnimatePresence>
+        {showSticky && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 p-4 md:hidden z-50 bg-gradient-to-t from-black via-black/80 to-transparent pb-6"
+          >
+            <a href={KIWIFY_CHECKOUT_URL} className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-lg w-full py-4 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+              Comprar por R$ 47 <ArrowRight size={20} />
+            </a>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
