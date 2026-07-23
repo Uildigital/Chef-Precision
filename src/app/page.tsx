@@ -125,6 +125,31 @@ export default function VSLSalesPage() {
         </div>
       </section>
 
+      {/* 3.5. PROVA SOCIAL (Depoimentos) */}
+      <section className="py-20 px-6 bg-[#0a0a0a] border-y border-white/5 relative">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-black text-center mb-12">Quem testou, <span className="text-amber-500">não vive mais sem.</span></h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { name: "Mariana S.", desc: "Confeiteira Autônoma", text: "Eu achava que lucrava vendendo bolo de pote a 7 reais. Quando coloquei na calculadora, vi que meu custo era 6,80. Salvaram meu negócio!" },
+              { name: "Juliana", desc: "Dona de Doceria", text: "Nunca vi nada tão fácil de usar. Eu odeio planilhas e aquele monte de células. Esse aplicativo é lindo e me dá a lista de compras pronta." },
+              { name: "Carla T.", desc: "Especialista em Bolos", text: "O melhor de tudo foi colocar a minha meta salarial lá. Agora eu sei exatamente o quanto preciso adicionar em cada fatia para pagar meu salário." }
+            ].map((dep, i) => (
+              <div key={i} className="bg-neutral-900 border border-white/5 p-8 rounded-3xl relative">
+                <div className="flex gap-1 text-amber-500 mb-4">
+                  {[...Array(5)].map((_, idx) => <Star key={idx} size={16} fill="currentColor" />)}
+                </div>
+                <p className="text-neutral-300 italic mb-6">"{dep.text}"</p>
+                <div>
+                  <p className="font-bold text-white">{dep.name}</p>
+                  <p className="text-xs text-neutral-500">{dep.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* 4. OFFER & STACKING (Bônus) */}
       <section className="py-24 px-6 relative overflow-hidden bg-black border-y border-white/5">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-orange-500/5 blur-[120px] pointer-events-none -z-10" />
@@ -174,6 +199,48 @@ export default function VSLSalesPage() {
             <p className="text-neutral-400">
               Estamos tão confiantes de que o Precifica Chef vai revolucionar o financeiro do seu negócio que assumimos todo o risco. Compre agora, use o sistema. Se em até 7 dias você achar que ele não facilita a sua vida, devolvemos 100% do seu dinheiro com apenas um clique.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5.5. AUTOR (Quem Sou Eu) */}
+      <section className="py-20 px-6 bg-black border-y border-white/5">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-10">
+          <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-neutral-900 border-4 border-amber-500/20 shrink-0 overflow-hidden relative">
+             {/* Você pode trocar essa div por uma tag <img /> com a sua foto! */}
+             <div className="absolute inset-0 flex items-center justify-center text-neutral-700 text-center text-xs p-4">
+                [Sua Foto Aqui]
+             </div>
+          </div>
+          <div>
+            <span className="text-amber-500 font-bold uppercase tracking-widest text-xs mb-2 block">Muito Prazer, Eu Sou...</span>
+            <h2 className="text-3xl font-black mb-4">Uilton (O Criador)</h2>
+            <p className="text-neutral-400 mb-4">
+              Por muitos anos, eu vi de perto a dor de quem trabalha com gastronomia. A paixão por criar receitas incríveis quase sempre esbarra na dificuldade financeira.
+            </p>
+            <p className="text-neutral-400">
+              O Precifica Chef não é apenas um "aplicativo". É a ferramenta que eu criei para que <strong>ninguém mais precise fechar as portas por não saber precificar</strong>. Eu simplifiquei o que era complexo para que você possa focar no que faz de melhor: cozinhar e encantar.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5.6. FAQ (Perguntas Frequentes) */}
+      <section className="py-20 px-6">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-black text-center mb-12">Perguntas Frequentes</h2>
+          <div className="space-y-4">
+            {[
+              { q: "Eu preciso baixar algum aplicativo no celular?", a: "Não! O Precifica Chef é um aplicativo web (SaaS). Você acessa pelo navegador do seu celular ou computador, como se fosse um site, usando seu e-mail e senha." },
+              { q: "Tem alguma mensalidade oculta?", a: "Nenhuma. Essa é uma oferta especial de lançamento vitalício. Você paga R$ 47,00 uma única vez e tem acesso ao sistema para sempre." },
+              { q: "Sou péssima com tecnologia. Vou conseguir usar?", a: "Com certeza. Nós abolimos as planilhas feias. O sistema foi desenhado para ser tão fácil de usar quanto o seu Instagram." },
+              { q: "Como eu recebo o acesso?", a: "Assim que o pagamento for aprovado (via Pix ou Cartão), o acesso ao sistema e ao Bônus é enviado imediatamente para o seu e-mail." }
+            ].map((faq, i) => (
+              <div key={i} className="bg-neutral-900 border border-white/5 p-6 rounded-2xl">
+                <h4 className="font-bold text-lg mb-2 text-white flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500"/> {faq.q}</h4>
+                <p className="text-neutral-400 text-sm ml-7">{faq.a}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
