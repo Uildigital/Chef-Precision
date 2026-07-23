@@ -24,5 +24,9 @@ Um Webbook avançado focado na sazonalidade de festas juninas, que funciona como
 ## 🧠 Valor de Processo
 Este projeto demonstra minha habilidade em lidar com **lógica matemática complexa**, **relacionamento entre tabelas de insumos e produtos** e a criação de ferramentas que trazem previsibilidade financeira para o usuário.
 
+## 📂 Organização de Contas (Infraestrutura)
+Para fins de organização e manutenção do projeto, a base de dados principal (Supabase) está vinculada à seguinte conta Google:
+*   **Supabase (Banco de Dados):** `uildigital@gmail.com`
+
 ---
 *"Transformando receitas em negócios lucrativos através da precisão dos dados."*
