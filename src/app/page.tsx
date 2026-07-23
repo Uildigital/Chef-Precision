@@ -50,6 +50,7 @@ export default function AppCalculadora() {
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
   // Configurações Globais
@@ -169,6 +170,18 @@ export default function AppCalculadora() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleUpdatePassword = async () => {
+    if (newPassword.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
+    setAuthLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) alert("Erro ao atualizar senha: " + error.message);
+    else {
+      alert("Senha atualizada com sucesso!");
+      setNewPassword("");
+    }
+    setAuthLoading(false);
   };
 
   const carregarDados = async () => {
@@ -527,6 +540,14 @@ export default function AppCalculadora() {
               </div>
 
               <div className="mt-8 flex flex-col gap-3">
+                <div className="bg-black/30 border border-white/5 p-4 rounded-2xl mb-2">
+                  <label className="text-xs text-neutral-400 block mb-2 font-bold uppercase tracking-wider">Alterar Senha (Opcional)</label>
+                  <div className="flex gap-2">
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova senha (mín 6 caracteres)" className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500" />
+                    <button onClick={handleUpdatePassword} disabled={authLoading || newPassword.length < 6} className="bg-white/10 hover:bg-white/20 text-white font-medium px-4 rounded-xl transition-colors disabled:opacity-50">Atualizar</button>
+                  </div>
+                </div>
+
                 <button onClick={() => setShowConfig(false)} className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl transition-colors font-bold">Concluído</button>
                 <button onClick={handleLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl transition-colors font-medium border border-red-500/20">Sair da Conta</button>
               </div>
