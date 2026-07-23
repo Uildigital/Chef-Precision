@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { ChefHat, ArrowRight, CheckCircle2, TrendingUp, Calculator, PieChart, ShieldCheck, XCircle, PlayCircle } from "lucide-react";
+import { ChefHat, ArrowRight, CheckCircle2, TrendingUp, Calculator, PieChart, ShieldCheck, XCircle, PlayCircle, Star } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
